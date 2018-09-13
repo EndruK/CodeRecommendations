@@ -122,7 +122,8 @@ class Train:
                                 writestring = "Validation Accuracy of checkpoint:\n"
                                 writestring += str(highest_acc)
                                 f.write(writestring)
-                            savepath = saver.save(session, path)
+                            #savepath = saver.save(session, path)
+                            saver.save(session, os.path.join(self.checkpoint_path, "best.checkpoint"))
                     global_step += 1
             self.test(session, writer)
 

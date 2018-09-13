@@ -2,22 +2,19 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="60c25748-376b-4fff-9d40-7ba61238c552" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Config/Machine/gammaweb02.conf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Config/Machine/zuse.conf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Config/Output/output.conf" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Generate/seq2seq_generate.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_train.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/Preprocess_AST.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_sample_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Utils/helper.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Utils/nltk_tokenizer.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/generate.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seq2SeqAtt/Generate/seq2seqAtt_generate.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Seq2SeqAtt/generate.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2SeqAtt/Config/Input/exp01.conf" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2SeqAtt/Config/Input/exp01.conf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -29,33 +26,37 @@
     <session id="-860842726">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
+          <entry key="project.closed" value="1" />
+          <entry key="project.open.time.14" value="1" />
           <entry key="project.open.time.2" value="1" />
-          <entry key="project.opened" value="1" />
+          <entry key="project.open.time.3" value="1" />
+          <entry key="project.open.time.5" value="1" />
+          <entry key="project.opened" value="4" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="conf" value="6" />
-          <entry key="py" value="30" />
+          <entry key="conf" value="9" />
+          <entry key="py" value="57" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
-          <entry key="PLAIN_TEXT" value="6" />
-          <entry key="Python" value="30" />
+          <entry key="PLAIN_TEXT" value="9" />
+          <entry key="Python" value="57" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="conf" value="24" />
+          <entry key="conf" value="33" />
           <entry key="dummy" value="14" />
-          <entry key="py" value="7411" />
+          <entry key="py" value="15880" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="38" />
-          <entry key="Python" value="7411" />
+          <entry key="PLAIN_TEXT" value="47" />
+          <entry key="Python" value="15880" />
         </counts>
       </usages-collector>
     </session>
@@ -100,75 +101,32 @@
     </session>
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.5">
+    <splitter split-orientation="horizontal" split-proportion="0.4261632">
       <split-first>
-        <leaf>
+        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
           <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_train.py">
+            <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="450">
-                  <caret line="144" column="23" selection-start-line="144" selection-start-column="23" selection-end-line="144" selection-end-column="23" />
+                <state relative-caret-position="420">
+                  <caret line="116" column="23" lean-forward="true" selection-start-line="116" selection-start-column="23" selection-end-line="116" selection-end-column="23" />
                   <folding>
-                    <element signature="e#0#36#0" expanded="true" />
-                  </folding>
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/main.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="270">
-                  <caret line="18" column="28" selection-start-line="18" selection-start-column="28" selection-end-line="18" selection-end-column="28" />
-                  <folding>
-                    <element signature="e#0#29#0" expanded="true" />
-                  </folding>
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/generate.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="779">
-                  <caret line="62" column="5" selection-start-line="62" selection-start-column="5" selection-end-line="62" selection-end-column="5" />
-                  <folding>
-                    <element signature="e#0#54#0" expanded="true" />
-                    <marker date="1536237467733" expanded="true" signature="3441:3446" ph="..." />
+                    <marker date="1536847859117" expanded="true" signature="69:74" ph="..." />
+                    <marker date="1536847859117" expanded="true" signature="1690:1760" ph="..." />
+                    <marker date="1536847859117" expanded="true" signature="1848:1857" ph="..." />
+                    <marker date="1536847859117" expanded="true" signature="6049:6616" ph="..." />
+                    <marker date="1536847859117" expanded="true" signature="7276:7285" ph="..." />
                   </folding>
                 </state>
               </provider>
             </entry>
           </file>
           <file pinned="false" current-in-tab="true">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py">
+            <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="375">
-                  <caret line="83" lean-forward="true" selection-start-line="83" selection-end-line="83" />
+                <state relative-caret-position="675">
+                  <caret line="45" column="32" lean-forward="true" selection-start-line="45" selection-start-column="32" selection-end-line="45" selection-end-column="32" />
                   <folding>
-                    <element signature="e#0#23#0" expanded="true" />
-                    <marker date="1536241868767" expanded="true" signature="753:6868" ph="..." />
-                  </folding>
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="315">
-                  <caret line="21" column="18" lean-forward="true" selection-start-line="21" selection-start-column="18" selection-end-line="21" selection-end-column="18" />
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_dataset.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="3180">
-                  <caret line="215" column="19" selection-start-line="215" selection-start-column="15" selection-end-line="215" selection-end-column="19" />
-                  <folding>
-                    <element signature="e#0#32#0" expanded="true" />
+                    <element signature="e#0#72#0" expanded="true" />
                   </folding>
                 </state>
               </provider>
@@ -177,12 +135,12 @@
         </leaf>
       </split-first>
       <split-second>
-        <leaf>
-          <file pinned="false" current-in-tab="true">
+        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+          <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Seq2Seq/Generate/seq2seq_generate.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="123">
-                  <caret line="17" column="50" selection-start-line="17" selection-start-column="50" selection-end-line="17" selection-end-column="50" />
+                <state relative-caret-position="810">
+                  <caret line="54" column="28" selection-start-line="54" selection-start-column="28" selection-end-line="54" selection-end-column="28" />
                   <folding>
                     <element signature="e#0#49#0" expanded="true" />
                     <marker date="1536234097571" expanded="true" signature="100:105" ph="..." />
@@ -193,23 +151,20 @@
               </provider>
             </entry>
           </file>
-          <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
+          <file pinned="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="989">
-                  <caret line="110" column="87" selection-start-line="109" selection-start-column="4" selection-end-line="110" selection-end-column="87" />
-                  <folding>
-                    <element signature="e#0#72#0" expanded="true" />
-                  </folding>
+                <state relative-caret-position="375">
+                  <caret line="32" column="54" lean-forward="true" selection-start-line="32" selection-start-column="54" selection-end-line="32" selection-end-column="54" />
                 </state>
               </provider>
             </entry>
           </file>
           <file pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py">
+            <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_sample_data.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="1139">
-                  <caret line="219" column="70" selection-start-line="219" selection-start-column="70" selection-end-line="219" selection-end-column="70" />
+                <state relative-caret-position="903">
+                  <caret line="72" column="54" selection-start-line="72" selection-start-column="40" selection-end-line="72" selection-end-column="54" />
                 </state>
               </provider>
             </entry>
@@ -232,6 +187,8 @@
       <find>render_weights</find>
       <find>paths</find>
       <find>subset_paths</find>
+      <find>self.batch_size</find>
+      <find>split_dataset</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -262,25 +219,34 @@
         <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/main.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/Config/Machine/zuse.conf" />
-        <option value="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py" />
         <option value="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seq_train.py" />
-        <option value="$PROJECT_DIR$/Seq2Seq/seq2seq.py" />
-        <option value="$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py" />
-        <option value="$PROJECT_DIR$/Seq2SeqAtt/Config/Input/exp01.conf" />
         <option value="$PROJECT_DIR$/Seq2Seq/Generate/seq2seq_generate.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/generate.py" />
-        <option value="$PROJECT_DIR$/main.py" />
-        <option value="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_train.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf" />
+        <option value="$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_train.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_sample_data.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/generate.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Config/Input/exp01.conf" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_dataset.py" />
+        <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/Seq2SeqAtt/Generate/seq2seqAtt_generate.py" />
+        <option value="$USER_HOME$/Documents/JavaParserExperiment/CodeProposal/Python/proposal.py" />
+        <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/Preprocess_AST.py" />
+        <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" />
+        <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py" />
+        <option value="$PROJECT_DIR$/Seq2Seq/seq2seq.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="1677" />
-    <option name="y" value="466" />
-    <option name="width" value="2163" />
-    <option name="height" value="956" />
+    <option name="x" value="1061" />
+    <option name="y" value="331" />
+    <option name="width" value="2662" />
+    <option name="height" value="1533" />
   </component>
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
@@ -290,7 +256,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -302,26 +267,6 @@
               <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
               <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
               <item name="Seq2Seq" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
-              <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
-              <item name="Seq2Seq" type="462c0819:PsiDirectoryNode" />
-              <item name="Config" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
-              <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
-              <item name="Seq2Seq" type="462c0819:PsiDirectoryNode" />
-              <item name="Config" type="462c0819:PsiDirectoryNode" />
-              <item name="Input" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
-              <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
-              <item name="Seq2Seq" type="462c0819:PsiDirectoryNode" />
-              <item name="Config" type="462c0819:PsiDirectoryNode" />
-              <item name="Output" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
@@ -339,22 +284,19 @@
             <path>
               <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
               <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
-              <item name="Seq2SeqAtt" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="CodeRecommendations" type="b2602c69:ProjectViewProjectNode" />
-              <item name="CodeRecommendations" type="462c0819:PsiDirectoryNode" />
-              <item name="Seq2SeqAtt" type="462c0819:PsiDirectoryNode" />
-              <item name="Model" type="462c0819:PsiDirectoryNode" />
+              <item name="Seq2Seq" type="462c0819:PsiDirectoryNode" />
+              <item name="Preprocessing" type="462c0819:PsiDirectoryNode" />
+              <item name="Embedding" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$USER_HOME$/Documents/JavaParserExperiment/CodeProposal/Python/proposal.py" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -363,6 +305,9 @@
       <recent name="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset" />
       <recent name="$PROJECT_DIR$/Preprocessing/Dataset/Seq2Seq" />
       <recent name="$PROJECT_DIR$/Preprocessing/Dataset/Vanilla" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -391,10 +336,10 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1677" y="466" width="2163" height="956" extended-state="0" />
+    <frame x="1061" y="331" width="2662" height="1533" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24929841" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.113679424" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -412,6 +357,25 @@
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
     </layout>
+    <layout-to-restore>
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.11210036" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info id="Favorites" order="2" side_tool="true" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" weight="0.32983193" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="bottom" id="Version Control" order="7" />
+      <window_info anchor="bottom" id="Terminal" order="8" />
+      <window_info anchor="bottom" id="Event Log" order="9" side_tool="true" weight="0.32983193" />
+      <window_info anchor="bottom" id="Python Console" order="10" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout-to-restore>
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
@@ -422,13 +386,6 @@
     <entry file="file://$PROJECT_DIR$/Preprocessing/Dataset/dataset.py" />
     <entry file="file://$PROJECT_DIR$/Preprocessing/Dataset/Seq2Seq/seq2seq_dataset.py" />
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/dataset.py" />
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Utils/nltk_tokenizer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="12" column="34" lean-forward="true" selection-start-line="12" selection-start-column="34" selection-end-line="12" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/seq2seq_base_config.conf.py" />
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/seq2seq_base_config.conf" />
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Machine/gammaweb02.conf">
@@ -454,71 +411,91 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Configuration/configuration.py" />
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py">
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Output/output.conf">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="26" column="30" selection-start-line="26" selection-start-column="30" selection-end-line="26" selection-end-column="30" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="135">
+          <caret line="9" selection-start-line="9" selection-end-line="9" />
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_sample_data.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="20" lean-forward="true" selection-start-line="20" selection-end-line="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="315">
+          <caret line="21" column="18" selection-start-line="21" selection-start-column="18" selection-end-line="21" selection-end-column="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="506">
+          <caret line="83" selection-start-line="83" selection-end-line="83" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_train.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="310">
+          <caret line="144" column="23" selection-start-line="144" selection-start-column="23" selection-end-line="144" selection-end-column="23" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/Preprocess_AST.py" />
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/Preprocess_AST.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="263">
-          <caret line="34" column="33" selection-start-line="34" selection-start-column="33" selection-end-line="34" selection-end-column="33" />
+        <state relative-caret-position="240">
+          <caret line="16" column="45" lean-forward="true" selection-start-line="16" selection-start-column="45" selection-end-line="16" selection-end-column="45" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Config/Input/exp01.conf">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="21" column="18" lean-forward="true" selection-start-line="21" selection-start-column="18" selection-end-line="21" selection-end-column="18" />
+        <state relative-caret-position="45">
+          <caret line="3" column="23" selection-start-line="3" selection-start-column="23" selection-end-line="3" selection-end-column="23" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_train.py">
+    <entry file="file://$USER_HOME$/Documents/JavaParserExperiment/CodeProposal/Python/proposal.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="16" lean-forward="true" selection-start-line="16" selection-end-line="16" />
+        <state relative-caret-position="690">
+          <caret line="46" column="17" selection-start-line="46" selection-start-column="17" selection-end-line="46" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Utils/nltk_tokenizer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="32" column="21" selection-start-line="32" selection-start-column="21" selection-end-line="32" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Preprocessing/Dataset/seq2seq_dataset.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="915">
+          <caret line="62" column="43" selection-start-line="62" selection-start-column="43" selection-end-line="62" selection-end-column="43" />
           <folding>
-            <element signature="e#0#44#0" expanded="true" />
+            <element signature="e#0#32#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py">
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="104" column="27" selection-start-line="104" selection-start-column="27" selection-end-line="104" selection-end-column="27" />
-          <folding>
-            <element signature="e#0#72#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="989">
-          <caret line="110" column="87" selection-start-line="109" selection-start-column="4" selection-end-line="110" selection-end-column="87" />
-          <folding>
-            <element signature="e#0#72#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1139">
-          <caret line="219" column="70" selection-start-line="219" selection-start-column="70" selection-end-line="219" selection-end-column="70" />
+        <state relative-caret-position="408">
+          <caret line="206" column="51" lean-forward="true" selection-end-line="278" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Generate/seq2seq_generate.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="123">
-          <caret line="17" column="50" selection-start-line="17" selection-start-column="50" selection-end-line="17" selection-end-column="50" />
+        <state relative-caret-position="810">
+          <caret line="54" column="28" selection-start-line="54" selection-start-column="28" selection-end-line="54" selection-end-column="28" />
           <folding>
             <element signature="e#0#49#0" expanded="true" />
             <marker date="1536234097571" expanded="true" signature="100:105" ph="..." />
@@ -528,44 +505,51 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_sample_data.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="903">
+          <caret line="72" column="54" selection-start-line="72" selection-start-column="40" selection-end-line="72" selection-end-column="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Generate/seq2seqAtt_generate.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="870">
+          <caret line="58" column="28" selection-start-line="58" selection-start-column="28" selection-end-line="58" selection-end-column="28" />
+          <folding>
+            <element signature="e#0#60#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/generate.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="9" column="70" selection-start-line="9" selection-start-column="70" selection-end-line="9" selection-end-column="70" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/seq2seqAtt.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="795">
+          <caret line="58" column="39" selection-start-line="58" selection-start-column="39" selection-end-line="58" selection-end-column="39" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="18" column="28" selection-start-line="18" selection-start-column="28" selection-end-line="18" selection-end-column="28" />
+        <state relative-caret-position="390">
+          <caret line="26" lean-forward="true" selection-start-line="26" selection-end-line="26" />
           <folding>
             <element signature="e#0#29#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Output/output.conf">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="135">
-          <caret line="9" selection-start-line="9" selection-end-line="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_sample_data.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="719">
-          <caret line="69" column="12" selection-start-line="69" selection-start-column="12" selection-end-line="69" selection-end-column="96" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_dataset.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3180">
-          <caret line="215" column="19" selection-start-line="215" selection-start-column="15" selection-end-line="215" selection-end-column="19" />
-          <folding>
-            <element signature="e#0#32#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Seq2Seq/generate.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="779">
-          <caret line="62" column="5" selection-start-line="62" selection-start-column="5" selection-end-line="62" selection-end-column="5" />
+        <state relative-caret-position="348">
+          <caret line="27" selection-start-line="27" selection-end-line="27" />
           <folding>
             <element signature="e#0#54#0" expanded="true" />
             <marker date="1536237467733" expanded="true" signature="3441:3446" ph="..." />
@@ -573,30 +557,57 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_train.py">
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="450">
-          <caret line="144" column="23" selection-start-line="144" selection-start-column="23" selection-end-line="144" selection-end-column="23" />
+        <state relative-caret-position="1323">
+          <caret line="202" column="52" selection-start-line="202" selection-start-column="45" selection-end-line="202" selection-end-column="52" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2SeqAtt/Model/seq2seqAtt_train.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="975">
+          <caret line="71" column="27" selection-start-line="71" selection-start-column="27" selection-end-line="71" selection-end-column="27" />
           <folding>
-            <element signature="e#0#36#0" expanded="true" />
+            <element signature="e#0#44#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf">
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/seq2seq_dataset.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="21" column="18" lean-forward="true" selection-start-line="21" selection-start-column="18" selection-end-line="21" selection-end-column="18" />
+        <state relative-caret-position="243">
+          <caret line="288" column="35" lean-forward="true" selection-start-line="288" selection-start-column="35" selection-end-line="288" selection-end-column="35" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Model/seq2seq_model.py">
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="420">
+          <caret line="116" column="23" lean-forward="true" selection-start-line="116" selection-start-column="23" selection-end-line="116" selection-end-column="23" />
+          <folding>
+            <marker date="1536847859117" expanded="true" signature="69:74" ph="..." />
+            <marker date="1536847859117" expanded="true" signature="1690:1760" ph="..." />
+            <marker date="1536847859117" expanded="true" signature="1848:1857" ph="..." />
+            <marker date="1536847859117" expanded="true" signature="6049:6616" ph="..." />
+            <marker date="1536847859117" expanded="true" signature="7276:7285" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="375">
-          <caret line="83" lean-forward="true" selection-start-line="83" selection-end-line="83" />
+          <caret line="32" column="54" lean-forward="true" selection-start-line="32" selection-start-column="54" selection-end-line="32" selection-end-column="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="675">
+          <caret line="45" column="32" lean-forward="true" selection-start-line="45" selection-start-column="32" selection-end-line="45" selection-end-column="32" />
           <folding>
-            <element signature="e#0#23#0" expanded="true" />
-            <marker date="1536241868767" expanded="true" signature="753:6868" ph="..." />
+            <element signature="e#0#72#0" expanded="true" />
           </folding>
         </state>
       </provider>

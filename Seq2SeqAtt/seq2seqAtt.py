@@ -1,8 +1,8 @@
-from Seq2Seq.Preprocessing.Dataset.seq2seq_dataset import Seq2SeqDataset
-from Seq2Seq.Preprocessing.Dataset.seq2seq_sample_data import Seq2SeqSampleData
-from Seq2Seq.Utils.regex_tokenizer import RegexTokenizer
-from Seq2Seq.Preprocessing.Embedding.seq2seq_embedding_model import Seq2SeqEmbeddingModel
-from Seq2Seq.Model.seq2seq_train import Train
+from Seq2SeqAtt.Preprocessing.Dataset.seq2seq_dataset import Seq2SeqDataset
+from Seq2SeqAtt.Preprocessing.Dataset.seq2seq_sample_data import Seq2SeqSampleData
+from Seq2SeqAtt.Utils.regex_tokenizer import RegexTokenizer
+from Seq2SeqAtt.Preprocessing.Embedding.seq2seq_embedding_model import Seq2SeqEmbeddingModel
+from Seq2SeqAtt.Model.seq2seqAtt_train import Train
 import argparse, configparser, os, sys
 
 def run():
@@ -56,6 +56,7 @@ def run():
     dataset = Seq2SeqDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
                              tokenizer=tokenizer,
                              vocab_path=vocab_path,
+                             dump_path=args.experiment_path,
                              subset_paths=subset_paths)
     if experiment_config.getboolean("Meta", "preprocess_dataset"):
         dataset.create(shuffle=experiment_config.getboolean("Model", "shuffle_dataset"))

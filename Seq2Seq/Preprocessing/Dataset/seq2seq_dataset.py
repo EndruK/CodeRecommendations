@@ -20,6 +20,7 @@ class Seq2SeqDataset:
                  dataset_path,
                  tokenizer,
                  vocab_path,
+                 dump_path,
                  subset_paths):
         super(Seq2SeqDataset, self).__init__()
         if not os.path.isabs(dataset_path):
@@ -27,6 +28,7 @@ class Seq2SeqDataset:
         self.dataset_root_path = dataset_path
         self.tokenizer = tokenizer
         self.vocab_path = vocab_path
+        self.dump_path = dump_path
         self.subset_paths = subset_paths
 
     def create(self,
@@ -47,8 +49,12 @@ class Seq2SeqDataset:
     def load(self):
         with open(self.vocab_path, "rb") as f:
             self.vocab = pkl.load(f)
-        self.word_to_index = self.build_word_to_index_mapping(self.vocab)
-        self.index_to_word = self.build_index_to_word_mapping(self.vocab)
+        with open(os.path.join(self.dump_path, "w2i"), "rb") as f:
+            self.word_to_index = pkl.load(f)
+        with open(os.path.join(self.dump_path, "i2w"), "rb") as f:
+            self.index_to_word = pkl.load(f)
+        #self.word_to_index = self.build_word_to_index_mapping(self.vocab)
+        #self.index_to_word = self.build_index_to_word_mapping(self.vocab)
         with open(self.subset_paths[0], "rb") as f:
             self.train_samples = pkl.load(f)
         with open(self.subset_paths[1], "rb") as f:
@@ -127,6 +133,10 @@ class Seq2SeqDataset:
                 print("old vocab file removed")
         with open(self.vocab_path, "wb") as f:
             pkl.dump(vocab, f)
+        with open(os.path.join(self.dump_path, "w2i"), "wb") as f:
+            pkl.dump(self.word_to_index, f)
+        with open(os.path.join(self.dump_path, "i2w"), "wb") as f:
+            pkl.dump(self.index_to_word, f)
         print("vocabulary stored at", self.vocab_path)
 
     def ast_file_handler(self, file):

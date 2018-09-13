@@ -42,7 +42,7 @@ class AttentionModel:
 
     def build_graph_variables(self):
         # Network Input
-        self.x = tf.placeholder(tf.int32, [self.batch_size, self.input_size], name="x_input")
+        self.x = tf.placeholder(tf.int32, [None, self.input_size], name="x_input")
 
         # Embeddings
         self.W = tf.Variable(
@@ -63,8 +63,8 @@ class AttentionModel:
                                            name="first_dec_input")
 
         # Inference
-        self.y = tf.placeholder(tf.int32, [self.batch_size, self.output_size], name="labels")
-        self.y_masks = tf.placeholder(tf.float32, [self.batch_size, self.output_size], name="label_masks")
+        self.y = tf.placeholder(tf.int32, [None, self.output_size], name="labels")
+        self.y_masks = tf.placeholder(tf.float32, [None, self.output_size], name="label_masks")
 
         # training switch
         self.is_training = tf.placeholder(tf.bool, [], name="training_inference_switch")

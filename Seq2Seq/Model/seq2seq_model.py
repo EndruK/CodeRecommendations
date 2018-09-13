@@ -83,9 +83,7 @@ class LSTMModel:
                                                                                       maximum_iterations=self.output_size)
 
         with tf.name_scope("metric"):
-            print(self.training_decoder_output)
             logits = self.training_decoder_output.rnn_output
-            print(logits)
             crossentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
                 labels=self.y, logits=logits)
             # add masks to loss to ignore padding
