@@ -27,8 +27,8 @@ class JSONEmbedding:
         self.logs_path = logs_path
         self.model_checkpoint_path = model_checkpoint_path
         self.epochs = epochs
-        self.print_every = 100
-        self.validate_every = 1000
+        self.print_every = 500
+        self.validate_every = 3000
         self.nearest_neighbors = 8
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
@@ -67,7 +67,6 @@ class JSONEmbedding:
         self.similarity = tf.matmul(self.valid_embeddings, self.normalized_embeddings, transpose_b=True)
 
     def train(self):
-        self.skip_tuples_train = self.build_dataset(self.input_dataset_path)
         print("start the training")
         self.build_graph()
         print("done building graph")
@@ -86,7 +85,7 @@ class JSONEmbedding:
             loss_array = []
             for epoch in range(self.epochs):
                 print("epoch:", epoch)
-                batch_generator = self.build_batch(self.skip_tuples_train)
+                batch_generator = self.dataset.embedding_generator(self.batch_size)
                 batch_cnt = 0
                 # iterate over all batches
                 for batch_x, batch_y in batch_generator:
@@ -114,12 +113,12 @@ class JSONEmbedding:
                         sim = self.similarity.eval()
                         # validation_generator = self.build_batch(self.skip_tuples_validation)
                         for i in range(self.valid_size):
-                            valid_word = self.dataset.index_to_word[self.valid_examples[i]]
+                            valid_word = self.dataset.i2w[self.valid_examples[i]]
                             top_k = self.nearest_neighbors
                             nearest = (-sim[i, :]).argsort()[1:top_k + 1]
                             log_str = 'Nearest to ' + valid_word
                             for k in range(top_k):
-                                close_word = self.dataset.index_to_word[nearest[k]]
+                                close_word = self.dataset.i2w[nearest[k]]
                                 log_str += " ," + str(close_word)
                             print(log_str)
                     global_step += 1
@@ -133,7 +132,7 @@ class JSONEmbedding:
                 start = randint(0, len(self.final_embeddings) - limit - 1)
                 end = start + limit
                 low_dim_embeds = tsne.fit_transform(self.final_embeddings[start:end, :])
-                labels = [self.dataset.index_to_word[i] for i in range(limit)]
+                labels = [self.dataset.i2w[i] for i in range(limit)]
                 self.plot_vectors(low_dim_embeds, labels, os.path.join(
                     save_folder, "embeddings_plot.png"))
                 self.plot_loss(loss_array, os.path.join(
@@ -194,79 +193,3 @@ class JSONEmbedding:
                          textcoords='offset points',
                          arrowprops=dict(arrowstyle='->'))
         plt.savefig(filename)
-
-    def build_dataset(self, input_dataset_path):
-        # get all folders in the path
-        ast_path_list = []
-        subfolders = os.listdir(input_dataset_path)
-        for folder in subfolders:
-            subfolder_path = os.path.join(input_dataset_path, folder)
-            for data_file in os.listdir(subfolder_path):
-                if data_file.endswith(".ast"):
-                    ast_path_list.append(os.path.join(subfolder_path, data_file))
-        # get all AST files and store them in a list
-        # ast_path_list = []
-        # ast_path_list.extend(dataset["ast.sliced"])
-        # ast_path_list.extend(dataset["ast.slice"])
-        cnt = 1
-        skip_tuples = []
-        for file in ast_path_list:
-            if cnt % 100 == 0:
-                print("processing file ", cnt, "/", len(ast_path_list))
-            tokens = self.dataset.tokenizer.tokenize(file, True)  # words
-            tokens_as_indices = self.dataset.map_tokens(tokens)[0]
-            skip_tuples_file = self.build_skipgrams(tokens_as_indices, True)
-            skip_tuples.extend(skip_tuples_file)
-            cnt += 1
-        return skip_tuples
-
-    def build_skipgrams(self, tokens, enable_padding=False):
-        result = []
-        if enable_padding:
-            start_index = 0
-            end_index = len(tokens)
-        else:
-            start_index = self.skip_gram_size
-            end_index = len(tokens) - self.skip_gram_size
-        for i in range(start_index, end_index):
-            logit = []
-            for j in range(i - self.skip_gram_size, i):
-                if j < 0:
-                    logit.append(self.dataset.word_to_index["<PAD>"])
-                else:
-                    logit.append(tokens[j])
-            for j in range(i + 1, i + self.skip_gram_size + 1):
-                if j >= len(tokens):
-                    logit.append(self.dataset.word_to_index["<PAD>"])
-                else:
-                    logit.append(tokens[j])
-            label = tokens[i]
-            for l in logit:
-                result.append([l, label])
-        return result
-
-    def build_batch(self, tuple_set):
-        # can build batches without an end
-        skip_gram_generator = self.get_skipgram(tuple_set)
-
-        # count how many batches we can get
-        cnt = 0
-        for tup in skip_gram_generator:
-            cnt += 1
-        batch_cnt = math.floor(cnt / self.batch_size)
-
-        skip_gram_generator = self.get_skipgram(tuple_set)
-        for batch in range(batch_cnt):
-            batch_x = []
-            batch_y = []
-            for _ in range(self.batch_size):
-                tup = next(skip_gram_generator)
-                batch_x.append(tup[0])
-                batch_y.append([tup[1]])
-            yield batch_x, batch_y
-
-    def get_skipgram(self, tuple_set):
-        # shuffle skip tuples
-        shuffle(tuple_set)
-        for tup in tuple_set:
-            yield tup

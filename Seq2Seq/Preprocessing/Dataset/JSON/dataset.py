@@ -1,4 +1,23 @@
-import os, sys, random, math, nltk, pickle as pkl
+import os, sys, random, math, nltk, pickle as pkl, datetime, numpy as np
+import multiprocessing
+
+
+def process_vocab_part(file_list, process):
+    _process_vocab = {}
+    cnt = 0
+    for file_x, _ in file_list:
+        with open(file_x, "r") as f:
+            text = f.read()
+        tokens = nltk.word_tokenize(text)
+        for token in tokens:
+            if token not in _process_vocab:
+                _process_vocab[token] = 1
+            else:
+                _process_vocab[token] += 1
+        if cnt % 200 == 0 and cnt > 0:
+            print("process {}: file {} of {}".format(process, cnt, len(file_list)))
+        cnt += 1
+    return _process_vocab
 
 class JsonDataset:
     def __init__(self,
@@ -17,24 +36,34 @@ class JsonDataset:
         self.EOS = "<EOS>"
         self.INV = "<INV>"
 
+        self.process_count = 7
+
+
         self.input_size = 2000
         self.output_size = 200
 
         self.skip_size = 5
 
     def create(self,
+               subset=None,
                shuffle=False,
                word_threshold=5):
-        for root, dirs, files in os.walk(self.dataset_path):
-            for file in files:
-                if file.endswith(".x"):
-                    x = os.path.join(root, file)
-                    y = os.path.join(root, file[:-1]+"y")
-                    self.file_paths.append([x, y])
+        if subset is None:
+            for root, dirs, files in os.walk(self.dataset_path):
+                for file in files:
+                    if file.endswith(".x"):
+                        x = os.path.join(root, file)
+                        y = os.path.join(root, file[:-1]+"y")
+                        self.file_paths.append([x, y])
+        else:
+            assert subset
+            with open(subset, "rb") as f:
+                self.file_paths = pkl.load(f)
         if shuffle:
             random.shuffle(self.file_paths)
         self.split_dataset()
-        self.build_vocab(word_threshold)
+        # self.build_vocab(word_threshold)
+        self.build_vocab_parallel(word_threshold)
         self.export()
 
     def split_dataset(self):
@@ -54,17 +83,97 @@ class JsonDataset:
         tokens = nltk.word_tokenize(text)
         return tokens
 
-    def build_vocab(self, threshold):
+
+
+
+    def build_vocab_parallel(self, threshold):
+        print("build vocab parallel using {} threads".format(self.process_count))
         assert self.training_files
         _vocab = {}
-        for file in self.training_files:
-            text = self.read_file(file)
+        sublist_length = math.floor(len(self.training_files) / self.process_count)
+        _subvocabs = []
+
+
+
+        jobs = []
+        pool = multiprocessing.Pool(processes=self.process_count)
+        for i in range(self.process_count):
+            start_index = i * sublist_length
+            end_index = (i+1) * sublist_length
+            if i == self.process_count-1:
+                process_file_list = self.training_files[start_index:]
+            else:
+                process_file_list = self.training_files[start_index:end_index]
+            p = pool.apply_async(process_vocab_part, args=(process_file_list, i))
+            jobs.append(p)
+        for job in jobs:
+            _subvocabs.append(job.get())
+        for subvocab in _subvocabs:
+            for key, value in subvocab.items():
+                if key not in _vocab:
+                    _vocab[key] = value
+                else:
+                    _vocab[key] += value
+        sorted_vocab = sorted([[word, freq] for word, freq in _vocab.items()], key=lambda x: x[1], reverse=True)
+        cleaned_vocab = [word for word, freq in sorted_vocab if freq >= threshold]
+        self.vocab = [self.PAD, self.UNK, self.SOS, self.EOS]
+        if self.INV not in cleaned_vocab:
+            self.vocab.append(self.INV)
+        self.vocab += cleaned_vocab
+        for i, word in enumerate(self.vocab):
+            self.w2i[word] = i
+            self.i2w[i] = word
+        print("done building vocab -> length = ", str(len(self.vocab)))
+
+
+        # for i in range(self.process_count):
+        #     start_index = i * sublist_length
+        #     end_index = (i+1) * sublist_length
+        #     if i == self.process_count-1:
+        #         process_file_list = self.training_files[start_index:]
+        #     else:
+        #         process_file_list = self.training_files[start_index:end_index]
+        #     p = multiprocessing.Process(target=self.process_vocab_part, args=(process_file_list,))
+        #     jobs.append(p)
+        #     p.start()
+        # for j in jobs:
+        #     j.join()
+
+
+    def build_vocab(self, threshold):
+        print("build vocab")
+        assert self.training_files
+        _vocab = {}
+        cnt = 0
+        durations = []
+        complete_time = 0
+        for file_x, _ in self.training_files:
+            start = datetime.datetime.now()
+            text = self.read_file(file_x)
             tokens = self.tokenize(text)
             for token in tokens:
                 if token not in _vocab:
                     _vocab[token] = 1
                 else:
                     _vocab[token] += 1
+            end = datetime.datetime.now()
+            duration = (end - start).total_seconds()
+            #print(duration)
+            durations.append(duration)
+            if cnt % 100 == 0 and cnt > 0:
+                sum_duration = np.sum(np.array(durations))
+                complete_time += sum_duration
+                durations = []
+                print("processing file",
+                      str(cnt),
+                      "of",
+                      str(len(self.training_files)),
+                      "time taken:",
+                      str(sum_duration)+"s",
+                      "remaining:",
+                      len(self.training_files)/cnt*complete_time/60,
+                      "min")
+            cnt += 1
         # clean up
         sorted_vocab = sorted([[word, freq] for word, freq in _vocab.items()], key=lambda x: x[1], reverse=True)
         cleaned_vocab = [word for word, freq in sorted_vocab if freq >= threshold]
@@ -75,6 +184,7 @@ class JsonDataset:
         for i, word in enumerate(self.vocab):
             self.w2i[word] = i
             self.i2w[i] = word
+        print("done building vocab -> length = ", str(len(self.vocab)))
 
     def export(self):
         assert self.vocab
@@ -86,6 +196,8 @@ class JsonDataset:
         training_paths = os.path.join(self.output_path, "JSON.training_paths")
         validation_paths = os.path.join(self.output_path, "JSON.validation_paths")
         testing_paths = os.path.join(self.output_path, "JSON.testing_paths")
+        if self.create_folder(self.output_path):
+            print("folder created")
         with open(vocab_path, "wb") as f:
             pkl.dump(self.vocab, f)
         with open(w2i_path, "wb") as f:
@@ -98,6 +210,12 @@ class JsonDataset:
             pkl.dump(self.validation_files, f)
         with open(testing_paths, "wb") as f:
             pkl.dump(self.testing_files, f)
+
+    def create_folder(self, path):
+        if not os.path.isdir(path):
+            os.makedirs(path)
+            return True
+        return False
 
     def load(self):
         vocab_path = os.path.join(self.output_path, "JSON.vocab")
@@ -169,7 +287,7 @@ class JsonDataset:
                 logit.append((tokens[j]))
             label = tokens[i]
             for l in logit:
-                result.append([l, label])
+                result.append([l, [label]])
         random.shuffle(result)
         return result
 
