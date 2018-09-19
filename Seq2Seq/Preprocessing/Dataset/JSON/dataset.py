@@ -1,12 +1,30 @@
-import os, sys, random, math, nltk, pickle as pkl, datetime, numpy as np
+import os, sys, random, math, nltk, pickle as pkl, datetime, numpy as np, json
 import multiprocessing
 
+
+# def process_vocab_part_old(file_list, process):
+#     _process_vocab = {}
+#     cnt = 0
+#
+#     for file_x, _ in file_list:
+#         with open(file_x, "r") as f:
+#             text = f.read()
+#         tokens = nltk.word_tokenize(text)
+#         for token in tokens:
+#             if token not in _process_vocab:
+#                 _process_vocab[token] = 1
+#             else:
+#                 _process_vocab[token] += 1
+#         if cnt % 200 == 0 and cnt > 0:
+#             print("process {}: file {} of {}".format(process, cnt, len(file_list)))
+#         cnt += 1
+#     return _process_vocab
 
 def process_vocab_part(file_list, process):
     _process_vocab = {}
     cnt = 0
-    for file_x, _ in file_list:
-        with open(file_x, "r") as f:
+    for file in file_list:
+        with open(file, "r") as f:
             text = f.read()
         tokens = nltk.word_tokenize(text)
         for token in tokens:
@@ -44,27 +62,73 @@ class JsonDataset:
 
         self.skip_size = 5
 
-    def create(self,
-               subset=None,
-               shuffle=False,
-               word_threshold=5):
-        if subset is None:
-            for root, dirs, files in os.walk(self.dataset_path):
-                for file in files:
-                    if file.endswith(".x"):
-                        x = os.path.join(root, file)
-                        y = os.path.join(root, file[:-1]+"y")
-                        self.file_paths.append([x, y])
+    def extract_statements(self, file_path):
+        text = self.read_file(file_path)
+        statements = self.slice_method_statements(text)
+        # build pairs
+        for statement in statements:
+            json_str = str(json.loads(text))
+            stmt_str = str(statement)
+            source = json_str.replace(stmt_str, "{<INV>:<EMPTY>}")
+            target = stmt_str
+            yield source, target
+
+    def slice_method_statements(self, text):
+        json_data = json.loads(text)
+        statements = self.process_node(json_data, target="expression")
+        return statements
+
+    def process_node(self, node, target, target_list=[]):
+        if isinstance(node, list):
+            for item in node:
+                self.process_node(item, target, target_list)
+        elif isinstance(node, str):
+            pass
+        elif isinstance(node, dict):
+            for key, value in node.items():
+                if key == target:
+                    target_list.append(node)
+                target_list = self.process_node(value, target, target_list)
         else:
-            assert subset
-            with open(subset, "rb") as f:
-                self.file_paths = pkl.load(f)
+            raise NotImplementedError("tree case not implemented:", type(node))
+        return target_list
+
+    def create(self,
+                   shuffle=False,
+                   word_threshold=5):
+        # get all files in the dataset
+        for root, dirs, files in os.walk(self.dataset_path):
+            for file in files:
+                if file.endswith(".ast"):
+                    self.file_paths.append(os.path.join(root, file))
         if shuffle:
             random.shuffle(self.file_paths)
         self.split_dataset()
-        # self.build_vocab(word_threshold)
         self.build_vocab_parallel(word_threshold)
         self.export()
+
+    # # TODO: obsolete
+    # def create_old(self,
+    #            subset=None,
+    #            shuffle=False,
+    #            word_threshold=5):
+    #     if subset is None:
+    #         for root, dirs, files in os.walk(self.dataset_path):
+    #             for file in files:
+    #                 if file.endswith(".x"):
+    #                     x = os.path.join(root, file)
+    #                     y = os.path.join(root, file[:-1]+"y")
+    #                     self.file_paths.append([x, y])
+    #     else:
+    #         assert subset
+    #         with open(subset, "rb") as f:
+    #             self.file_paths = pkl.load(f)
+    #     if shuffle:
+    #         random.shuffle(self.file_paths)
+    #     self.split_dataset()
+    #     # self.build_vocab(word_threshold)
+    #     self.build_vocab_parallel(word_threshold)
+    #     self.export()
 
     def split_dataset(self):
         scheme = [.7, .2, .1]
@@ -83,18 +147,12 @@ class JsonDataset:
         tokens = nltk.word_tokenize(text)
         return tokens
 
-
-
-
     def build_vocab_parallel(self, threshold):
         print("build vocab parallel using {} threads".format(self.process_count))
         assert self.training_files
         _vocab = {}
         sublist_length = math.floor(len(self.training_files) / self.process_count)
         _subvocabs = []
-
-
-
         jobs = []
         pool = multiprocessing.Pool(processes=self.process_count)
         for i in range(self.process_count):
@@ -256,6 +314,26 @@ class JsonDataset:
                 result.append(self.w2i[self.UNK])
         return result
 
+    # def embedding_generator(self, batch_size=32):
+    #     assert self.training_files
+    #     random.shuffle(self.training_files)
+    #     batch_x = []
+    #     batch_y = []
+    #     cnt = 0
+    #     for i in range(len(self.training_files)):
+    #         x, _ = self.training_files[i]
+    #         x_text = self.read_file(x)
+    #         x_tokens = self.indexize_text(x_text)
+    #         skips = self.build_skipgrams(x_tokens)
+    #         for x, y in skips:
+    #             batch_x.append(x)
+    #             batch_y.append(y)
+    #             cnt += 1
+    #             if cnt % batch_size == 0 and cnt > 0:
+    #                 yield batch_x, batch_y
+    #                 batch_x, batch_y = [], []
+
+
     def embedding_generator(self, batch_size=32):
         assert self.training_files
         random.shuffle(self.training_files)
@@ -263,10 +341,10 @@ class JsonDataset:
         batch_y = []
         cnt = 0
         for i in range(len(self.training_files)):
-            x, _ = self.training_files[i]
-            x_text = self.read_file(x)
-            x_tokens = self.indexize_text(x_text)
-            skips = self.build_skipgrams(x_tokens)
+            file = self.training_files[i]
+            text = self.read_file(file)
+            tokens = self.indexize_text(text)
+            skips = self.build_skipgrams(tokens)
             for x, y in skips:
                 batch_x.append(x)
                 batch_y.append(y)
@@ -291,6 +369,21 @@ class JsonDataset:
         random.shuffle(result)
         return result
 
+    # def batch_generator(self, dataset, batch_size=32):
+    #     random.shuffle(dataset)
+    #     batch = []
+    #     for i in range(len(dataset)):
+    #         if i % batch_size == 0 and i > 0:
+    #             yield batch
+    #             batch = []
+    #         x_path, y_path = dataset[i]
+    #         x_text = self.read_file(x_path)
+    #         y_text = self.read_file(y_path)
+    #         x_tokens = self.indexize_text(x_text)
+    #         y_tokens = self.indexize_text(y_text)
+    #         if len(x_tokens) > self.input_size or len(y_tokens) > self.output_path:
+    #             continue
+    #         batch.append([x_tokens, y_tokens])
     def batch_generator(self, dataset, batch_size=32):
         random.shuffle(dataset)
         batch = []
@@ -298,11 +391,10 @@ class JsonDataset:
             if i % batch_size == 0 and i > 0:
                 yield batch
                 batch = []
-            x_path, y_path = dataset[i]
-            x_text = self.read_file(x_path)
-            y_text = self.read_file(y_path)
-            x_tokens = self.indexize_text(x_text)
-            y_tokens = self.indexize_text(y_text)
+            file_path = dataset[i]
+            for x_text, y_text in self.extract_statements(file_path):
+                x_tokens = self.tokenize(x_text)
+                y_tokens = self.tokenize(y_text)
             if len(x_tokens) > self.input_size or len(y_tokens) > self.output_path:
                 continue
             batch.append([x_tokens, y_tokens])

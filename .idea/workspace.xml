@@ -2,13 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="60c25748-376b-4fff-9d40-7ba61238c552" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/Seq2Seq/Config/Machine/zuse_json.conf" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seq2Seq/seq2seq.py" beforeDir="false" afterPath="$PROJECT_DIR$/Seq2Seq/seq2seq.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -44,13 +38,13 @@
         <counts>
           <entry key="conf" value="88" />
           <entry key="dummy" value="14" />
-          <entry key="py" value="18762" />
+          <entry key="py" value="20650" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
           <entry key="PLAIN_TEXT" value="102" />
-          <entry key="Python" value="18762" />
+          <entry key="Python" value="20650" />
         </counts>
       </usages-collector>
     </session>
@@ -110,31 +104,34 @@
               </provider>
             </entry>
           </file>
-          <file pinned="false" current-in-tab="false">
+          <file pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="948">
-                  <caret line="275" column="45" selection-start-line="275" selection-start-column="45" selection-end-line="275" selection-end-column="45" />
+                <state relative-caret-position="600">
+                  <caret line="40" column="22" lean-forward="true" selection-start-line="40" selection-start-column="22" selection-end-line="40" selection-end-column="22" />
                   <folding>
-                    <element signature="e#0#72#0" expanded="true" />
-                    <marker date="1537183887022" expanded="true" signature="678:683" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="2591:4908" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="2658:2664" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="2706:4908" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="5090:5099" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="7892:8008" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="10379:10948" ph="..." />
-                    <marker date="1537183887022" expanded="true" signature="11608:11617" ph="..." />
+                    <element signature="e#0#78#0" expanded="true" />
+                    <marker date="1537279215576" expanded="true" signature="747:1259" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="1277:1282" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="3083:3519" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="3639:3650" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="4950:7261" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="5015:5020" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="5062:7261" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="7443:7452" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="10245:10361" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="13451:14020" ph="..." />
+                    <marker date="1537279215576" expanded="true" signature="15314:15323" ph="..." />
                   </folding>
                 </state>
               </provider>
             </entry>
           </file>
-          <file pinned="false" current-in-tab="true">
+          <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="90">
-                  <caret line="6" column="11" selection-start-line="6" selection-start-column="11" selection-end-line="6" selection-end-column="11" />
+                <state relative-caret-position="255">
+                  <caret line="17" column="21" lean-forward="true" selection-start-line="17" selection-start-column="21" selection-end-line="17" selection-end-column="21" />
                 </state>
               </provider>
             </entry>
@@ -169,8 +166,8 @@
           <file pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="663">
-                  <caret line="88" column="35" selection-start-line="88" selection-start-column="35" selection-end-line="88" selection-end-column="35" />
+                <state relative-caret-position="945">
+                  <caret line="69" lean-forward="true" selection-start-line="69" selection-end-line="69" />
                   <folding>
                     <element signature="e#0#72#0" expanded="true" />
                   </folding>
@@ -272,15 +269,15 @@
         <option value="$PROJECT_DIR$/Seq2Seq/Config/Machine/zuse_json.conf" />
         <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/seq2seq.py" />
-        <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/json_embedding.py" />
         <option value="$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf" />
+        <option value="$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="1549" />
-    <option name="y" value="376" />
+    <option name="x" value="721" />
+    <option name="y" value="381" />
     <option name="width" value="2311" />
     <option name="height" value="1533" />
   </component>
@@ -384,7 +381,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1549" y="376" width="2311" height="1533" extended-state="0" />
+    <frame x="721" y="381" width="2311" height="1533" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.13111888" />
@@ -622,38 +619,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="663">
-          <caret line="88" column="35" selection-start-line="88" selection-start-column="35" selection-end-line="88" selection-end-column="35" />
-          <folding>
-            <element signature="e#0#72#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Embedding/seq2seq_embedding_model.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="843">
           <caret line="250" column="39" selection-start-line="250" selection-start-column="34" selection-end-line="250" selection-end-column="39" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="948">
-          <caret line="275" column="45" selection-start-line="275" selection-start-column="45" selection-end-line="275" selection-end-column="45" />
-          <folding>
-            <element signature="e#0#72#0" expanded="true" />
-            <marker date="1537183887022" expanded="true" signature="678:683" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="2591:4908" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="2658:2664" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="2706:4908" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="5090:5099" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="7892:8008" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="10379:10948" ph="..." />
-            <marker date="1537183887022" expanded="true" signature="11608:11617" ph="..." />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -666,8 +635,39 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Seq2Seq/Config/Input/exp01.conf">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="11" selection-start-line="6" selection-start-column="11" selection-end-line="6" selection-end-column="11" />
+        <state relative-caret-position="255">
+          <caret line="17" column="21" lean-forward="true" selection-start-line="17" selection-start-column="21" selection-end-line="17" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/seq2seq.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="945">
+          <caret line="69" lean-forward="true" selection-start-line="69" selection-end-line="69" />
+          <folding>
+            <element signature="e#0#72#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Seq2Seq/Preprocessing/Dataset/JSON/dataset.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="600">
+          <caret line="40" column="22" lean-forward="true" selection-start-line="40" selection-start-column="22" selection-end-line="40" selection-end-column="22" />
+          <folding>
+            <element signature="e#0#78#0" expanded="true" />
+            <marker date="1537279215576" expanded="true" signature="747:1259" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="1277:1282" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="3083:3519" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="3639:3650" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="4950:7261" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="5015:5020" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="5062:7261" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="7443:7452" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="10245:10361" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="13451:14020" ph="..." />
+            <marker date="1537279215576" expanded="true" signature="15314:15323" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>
