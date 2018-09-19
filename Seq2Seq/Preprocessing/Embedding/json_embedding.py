@@ -58,7 +58,7 @@ class JSONEmbedding:
             num_sampled=self.num_sampled,
             num_classes=len(self.dataset.vocab)
         ))
-        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=1.0).minimize(self.loss)
+        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(self.loss)
 
         # cosine similarity
         self.norm = tf.sqrt(tf.reduce_mean(tf.square(self.embeddings), 1, keep_dims=True))
@@ -89,7 +89,6 @@ class JSONEmbedding:
                 batch_cnt = 0
                 # iterate over all batches
                 for batch_x, batch_y in batch_generator:
-
                     batch_cnt += 1
                     _, cur_loss = session.run([self.optimizer, self.loss], feed_dict={
                         self.train_inputs: batch_x,
