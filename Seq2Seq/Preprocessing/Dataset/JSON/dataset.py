@@ -54,7 +54,7 @@ class JsonDataset:
         self.EOS = "<EOS>"
         self.INV = "<INV>"
 
-        self.process_count = 7
+        self.process_count = 25
 
 
         self.input_size = 2000

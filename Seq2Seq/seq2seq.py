@@ -63,8 +63,7 @@ def run():
 
     if experiment_config.getboolean("Meta", "preprocess_dataset"):
         # dataset.create(shuffle=experiment_config.getboolean("Model", "shuffle_dataset"))
-        subset_path = "/media/andre/E896A5A496A573AA/Corpora/AndreKarge_2018-09-12_JavaAST_JSON_without_features/Preprocessed/Sliced_idx/subset_50000.pkl"
-        dataset.create(shuffle=True, word_threshold=5, subset=subset_path)
+        dataset.create(shuffle=True, word_threshold=5)
     else:
         dataset.load()
 
