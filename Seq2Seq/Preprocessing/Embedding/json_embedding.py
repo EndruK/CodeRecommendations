@@ -58,7 +58,7 @@ class JSONEmbedding:
             num_sampled=self.num_sampled,
             num_classes=len(self.dataset.vocab)
         ))
-        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(self.loss)
+        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.5).minimize(self.loss)
 
         # cosine similarity
         self.norm = tf.sqrt(tf.reduce_mean(tf.square(self.embeddings), 1, keep_dims=True))
