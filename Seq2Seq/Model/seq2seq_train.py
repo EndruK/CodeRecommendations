@@ -73,10 +73,12 @@ class Train:
             print("start training")
             for epoch in range(self.epochs):
                 train_acc_sum = 0
-                batch_sampler = self.sampler.get_batch(
-                    self.datamodel.train_samples)
+                training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
+                                                                  batch_size=self.datamodel.batch_size)
+                # batch_sampler = self.sampler.get_batch(
+                #     self.datamodel.train_samples)
                 batch_cnt = 0
-                for batch_x, _, batch_y, y_mask in batch_sampler:
+                for batch_x, batch_y, y_mask in training_sampler:
                     _, loss, batch_acc = session.run(
                         [self.tf_model.optimizer,
                          self.tf_model.loss,
@@ -125,12 +127,14 @@ class Train:
 
     def validate(self, session, global_step, writer):
         print("start validation")
-        batch_sampler = self.sampler.get_batch(
-            self.datamodel.validation_samples)
+        validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
+                                                            batch_size=self.datamodel.batch_size)
+        # batch_sampler = self.sampler.get_batch(
+        #     self.datamodel.validation_samples)
         batch_cnt = 0
         sum_acc = 0
         render_cnt = 0
-        for batch_x, _, batch_y, y_mask in batch_sampler:
+        for batch_x, batch_y, y_mask in validation_sampler:
             result, acc = session.run(
                 [self.tf_model.inference_argmax,
                  self.tf_model.inference_batch_accuracy],
@@ -168,13 +172,15 @@ class Train:
 
     def test(self, session, writer):
         print("start testing")
-        batch_sampler = self.sampler.get_batch(
-            self.datamodel.test_samples)
+        test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
+                                                      batch_size=self.datamodel.batch_size)
+        # batch_sampler = self.sampler.get_batch(
+        #     self.datamodel.test_samples)
         batch_cnt = 0
         summ_add = 0
         test_summ = tf.Summary()
         acc_sum = 0
-        for batch_x, _, batch_y, y_mask in batch_sampler:
+        for batch_x, batch_y, y_mask in test_sampler:
             [acc] = session.run(
                 [self.tf_model.inference_batch_accuracy],
                 feed_dict={

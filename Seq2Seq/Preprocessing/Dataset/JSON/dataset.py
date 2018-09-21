@@ -2,24 +2,6 @@ import os, sys, random, math, nltk, pickle as pkl, datetime, numpy as np, json
 import multiprocessing
 
 
-# def process_vocab_part_old(file_list, process):
-#     _process_vocab = {}
-#     cnt = 0
-#
-#     for file_x, _ in file_list:
-#         with open(file_x, "r") as f:
-#             text = f.read()
-#         tokens = nltk.word_tokenize(text)
-#         for token in tokens:
-#             if token not in _process_vocab:
-#                 _process_vocab[token] = 1
-#             else:
-#                 _process_vocab[token] += 1
-#         if cnt % 200 == 0 and cnt > 0:
-#             print("process {}: file {} of {}".format(process, cnt, len(file_list)))
-#         cnt += 1
-#     return _process_vocab
-
 def process_vocab_part(file_list, process):
     _process_vocab = {}
     cnt = 0
@@ -107,29 +89,6 @@ class JsonDataset:
         self.build_vocab_parallel(word_threshold)
         self.export()
 
-    # # TODO: obsolete
-    # def create_old(self,
-    #            subset=None,
-    #            shuffle=False,
-    #            word_threshold=5):
-    #     if subset is None:
-    #         for root, dirs, files in os.walk(self.dataset_path):
-    #             for file in files:
-    #                 if file.endswith(".x"):
-    #                     x = os.path.join(root, file)
-    #                     y = os.path.join(root, file[:-1]+"y")
-    #                     self.file_paths.append([x, y])
-    #     else:
-    #         assert subset
-    #         with open(subset, "rb") as f:
-    #             self.file_paths = pkl.load(f)
-    #     if shuffle:
-    #         random.shuffle(self.file_paths)
-    #     self.split_dataset()
-    #     # self.build_vocab(word_threshold)
-    #     self.build_vocab_parallel(word_threshold)
-    #     self.export()
-
     def split_dataset(self):
         scheme = [.7, .2, .1]
         training_length = math.floor(scheme[0] * len(self.file_paths))
@@ -183,19 +142,6 @@ class JsonDataset:
             self.i2w[i] = word
         print("done building vocab -> length = ", str(len(self.vocab)))
 
-
-        # for i in range(self.process_count):
-        #     start_index = i * sublist_length
-        #     end_index = (i+1) * sublist_length
-        #     if i == self.process_count-1:
-        #         process_file_list = self.training_files[start_index:]
-        #     else:
-        #         process_file_list = self.training_files[start_index:end_index]
-        #     p = multiprocessing.Process(target=self.process_vocab_part, args=(process_file_list,))
-        #     jobs.append(p)
-        #     p.start()
-        # for j in jobs:
-        #     j.join()
 
 
     def build_vocab(self, threshold):
@@ -314,26 +260,6 @@ class JsonDataset:
                 result.append(self.w2i[self.UNK])
         return result
 
-    # def embedding_generator(self, batch_size=32):
-    #     assert self.training_files
-    #     random.shuffle(self.training_files)
-    #     batch_x = []
-    #     batch_y = []
-    #     cnt = 0
-    #     for i in range(len(self.training_files)):
-    #         x, _ = self.training_files[i]
-    #         x_text = self.read_file(x)
-    #         x_tokens = self.indexize_text(x_text)
-    #         skips = self.build_skipgrams(x_tokens)
-    #         for x, y in skips:
-    #             batch_x.append(x)
-    #             batch_y.append(y)
-    #             cnt += 1
-    #             if cnt % batch_size == 0 and cnt > 0:
-    #                 yield batch_x, batch_y
-    #                 batch_x, batch_y = [], []
-
-
     def embedding_generator(self, batch_size=32):
         assert self.training_files
         random.shuffle(self.training_files)
@@ -369,35 +295,28 @@ class JsonDataset:
         random.shuffle(result)
         return result
 
-    # def batch_generator(self, dataset, batch_size=32):
-    #     random.shuffle(dataset)
-    #     batch = []
-    #     for i in range(len(dataset)):
-    #         if i % batch_size == 0 and i > 0:
-    #             yield batch
-    #             batch = []
-    #         x_path, y_path = dataset[i]
-    #         x_text = self.read_file(x_path)
-    #         y_text = self.read_file(y_path)
-    #         x_tokens = self.indexize_text(x_text)
-    #         y_tokens = self.indexize_text(y_text)
-    #         if len(x_tokens) > self.input_size or len(y_tokens) > self.output_path:
-    #             continue
-    #         batch.append([x_tokens, y_tokens])
     def batch_generator(self, dataset, batch_size=32):
         random.shuffle(dataset)
-        batch = []
+        batch_x, batch_y, batch_y_mask = [], [], []
+        cnt = 0
         for i in range(len(dataset)):
             if i % batch_size == 0 and i > 0:
-                yield batch
-                batch = []
+                yield batch_x, batch_y
+                batch_x, batch_y = [], []
             file_path = dataset[i]
             for x_text, y_text in self.extract_statements(file_path):
                 x_tokens = self.tokenize(x_text)
                 y_tokens = self.tokenize(y_text)
-            if len(x_tokens) > self.input_size or len(y_tokens) > self.output_path:
-                continue
-            batch.append([x_tokens, y_tokens])
+                if len(x_tokens) > self.input_size or len(y_tokens) > self.output_size:
+                    continue
+                y_mask = [1.0] * len(y_tokens) + [0.0] * (self.output_size-len(y_tokens))
+                batch_x.append(self.pad(x_tokens, self.input_size))
+                batch_y.append(self.pad(y_tokens, self.output_size))
+                batch_y_mask.append(y_mask)
+                cnt += 1
+                if cnt % batch_size == 0 and cnt > 0:
+                    yield batch_x, batch_y, batch_y_mask
+                    batch_x, batch_y, batch_y_mask = [], [], []
 
     def pad(self, tokens, length):
         result = [self.w2i[self.PAD]] * length
