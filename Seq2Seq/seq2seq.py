@@ -123,5 +123,6 @@ def run():
                      validation_interval=experiment_config.getint("Metric", "validation_interval"),
                      checkpoint_path=training_checkpoint_path,
                      gpu=experiment_config.getint("Meta", "gpu"),
-                     print_interval=experiment_config.getint("Metric", "print_interval"))
+                     print_interval=experiment_config.getint("Metric", "print_interval"),
+                     batch_size=experiment_config.getint("Model", "batch_size"))
     nn_model.train()

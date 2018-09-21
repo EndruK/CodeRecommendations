@@ -25,7 +25,8 @@ class Train:
                  learning_rate,
                  validation_interval,
                  gpu,
-                 print_interval):
+                 print_interval,
+                 batch_size):
         self.datamodel = datamodel
         self.embedding_model = embedding_model
         self.enc_hidden = hidden_size
@@ -36,11 +37,12 @@ class Train:
         self.epochs = epochs
         self.validation_interval = validation_interval
         self.print_interval = print_interval
+        self.batch_size = batch_size
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
         self.tf_model = LSTMModel(input_size=datamodel.input_size,
                                   output_size=datamodel.output_size,
-                                  batch_size=datamodel.batch_size,
+                                  batch_size=self.batch_size,
                                   model=datamodel,
                                   embed_size=embedding_model.embedding_size,
                                   enc_hidden=self.enc_hidden,
@@ -72,7 +74,7 @@ class Train:
             for epoch in range(self.epochs):
                 train_acc_sum = 0
                 training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
-                                                                  batch_size=self.datamodel.batch_size)
+                                                                  batch_size=self.batch_size)
                 # batch_sampler = self.sampler.get_batch(
                 #     self.datamodel.train_samples)
                 batch_cnt = 0
@@ -126,7 +128,7 @@ class Train:
     def validate(self, session, global_step, writer):
         print("start validation")
         validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
-                                                            batch_size=self.datamodel.batch_size)
+                                                            batch_size=self.batch_size)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.validation_samples)
         batch_cnt = 0
@@ -171,7 +173,7 @@ class Train:
     def test(self, session, writer):
         print("start testing")
         test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
-                                                      batch_size=self.datamodel.batch_size)
+                                                      batch_size=self.batch_size)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.test_samples)
         batch_cnt = 0
