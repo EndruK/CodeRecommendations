@@ -110,19 +110,18 @@ def run():
     ####################################################################################################################
     ### Train Neural Network ###########################################################################################
     ####################################################################################################################
-    # training_log_path = os.path.join(
-    #     args.experiment_path, output_config.get("Logging", "training_log_path"))
-    # training_checkpoint_path = os.path.join(
-    #     args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
-    # nn_model = Train(datamodel=dataset,
-    #                  sampler=dataset_sampler,
-    #                  embedding_model=embedding_model,
-    #                  logs_path=training_log_path,
-    #                  epochs=experiment_config.getint("Model", "epochs"),
-    #                  hidden_size=experiment_config.getint("Model", "hidden_size"),
-    #                  learning_rate=experiment_config.getfloat("Model", "learning_rate"),
-    #                  validation_interval=experiment_config.getint("Metric", "validation_interval"),
-    #                  checkpoint_path=training_checkpoint_path,
-    #                  gpu=experiment_config.getint("Meta", "gpu"),
-    #                  print_interval=experiment_config.getint("Metric", "print_interval"))
-    # nn_model.train()
+    training_log_path = os.path.join(
+        args.experiment_path, output_config.get("Logging", "training_log_path"))
+    training_checkpoint_path = os.path.join(
+        args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
+    nn_model = Train(datamodel=dataset,
+                     embedding_model=embedding_model,
+                     logs_path=training_log_path,
+                     epochs=experiment_config.getint("Model", "epochs"),
+                     hidden_size=experiment_config.getint("Model", "hidden_size"),
+                     learning_rate=experiment_config.getfloat("Model", "learning_rate"),
+                     validation_interval=experiment_config.getint("Metric", "validation_interval"),
+                     checkpoint_path=training_checkpoint_path,
+                     gpu=experiment_config.getint("Meta", "gpu"),
+                     print_interval=experiment_config.getint("Metric", "print_interval"))
+    nn_model.train()

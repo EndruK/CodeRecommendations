@@ -17,7 +17,6 @@ class Train:
 
     def __init__(self,
                  datamodel,
-                 sampler,
                  embedding_model,
                  logs_path,
                  checkpoint_path,
@@ -28,7 +27,6 @@ class Train:
                  gpu,
                  print_interval):
         self.datamodel = datamodel
-        self.sampler = sampler
         self.embedding_model = embedding_model
         self.enc_hidden = hidden_size
         self.dec_hidden = hidden_size*2
@@ -40,9 +38,9 @@ class Train:
         self.print_interval = print_interval
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
-        self.tf_model = LSTMModel(input_size=sampler.input_sample_size,
-                                  output_size=sampler.output_sample_size,
-                                  batch_size=sampler.batch_size,
+        self.tf_model = LSTMModel(input_size=datamodel.input_size,
+                                  output_size=datamodel.output_size,
+                                  batch_size=datamodel.batch_size,
                                   model=datamodel,
                                   embed_size=embedding_model.embedding_size,
                                   enc_hidden=self.enc_hidden,
