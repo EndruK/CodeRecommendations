@@ -145,12 +145,12 @@ class Train:
                 })
             sum_acc += acc
             if batch_cnt % self.print_interval == 0 and batch_cnt > 0:
-                o = [self.datamodel.index_to_word[i] for i in result[0]]
+                o = [self.datamodel.i2w[i] for i in result[0]]
                 print(o)
                 print("batch",str(batch_cnt),"current accuracy:", str(sum_acc/batch_cnt))
-                x_sample = [self.datamodel.index_to_word[w] for w in batch_x[0]]
-                y_sample = [self.datamodel.index_to_word[w] for w in batch_y[0]]
-                pred_sample = [self.datamodel.index_to_word[w] for w in result[0]]
+                x_sample = [self.datamodel.i2w[w] for w in batch_x[0]]
+                y_sample = [self.datamodel.i2w[w] for w in batch_y[0]]
+                pred_sample = [self.datamodel.i2w[w] for w in result[0]]
                 render_cnt += 1
                 # print("x_sample: {}\ny_sample: {}\ny_predicted: {}".format(x_sample, y_sample, pred_sample))
                 #print(attention_weights.shape)

@@ -68,12 +68,12 @@ class LSTMModel:
                                                                                      impute_finished=True,
                                                                                      maximum_iterations=self.output_size)
             with tf.variable_scope("decoder", reuse=True):
-                start_tokens = tf.tile(tf.constant([self.model.word_to_index["<GO>"]], dtype=tf.int32),
+                start_tokens = tf.tile(tf.constant([self.model.w2i["<GO>"]], dtype=tf.int32),
                                        [self.batch_size],
                                        name="start_tokens")
                 inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(self.W,
                                                                             start_tokens,
-                                                                            self.model.word_to_index["<PAD>"])
+                                                                            self.model.w2i["<PAD>"])
                 inference_decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
                                                                     inference_helper,
                                                                     encoder_state,
