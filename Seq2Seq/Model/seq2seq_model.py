@@ -68,7 +68,7 @@ class LSTMModel:
                                                                                      impute_finished=True,
                                                                                      maximum_iterations=self.output_size)
             with tf.variable_scope("decoder", reuse=True):
-                start_tokens = tf.tile(tf.constant([self.model.w2i["<GO>"]], dtype=tf.int32),
+                start_tokens = tf.tile(tf.constant([self.model.w2i["<SOS>"]], dtype=tf.int32),
                                        [self.batch_size],
                                        name="start_tokens")
                 inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(self.W,
