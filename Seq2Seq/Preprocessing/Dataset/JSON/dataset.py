@@ -44,11 +44,16 @@ class JsonDataset:
 
         self.skip_size = 5
 
-    def extract_statements(self, file_path):
+    def extract_statements(self, file_path, limit=100):
         text = self.read_file(file_path)
         statements = self.slice_method_statements(text)
         # build pairs
-        for statement in statements:
+        if len(statements) > limit:
+            end = limit
+        else:
+            end = len(statements)
+        random.shuffle(statements)
+        for statement in statements[:end]:
             json_str = str(json.loads(text))
             stmt_str = str(statement)
             source = json_str.replace(stmt_str, "{<INV>:<EMPTY>}")
@@ -295,18 +300,16 @@ class JsonDataset:
         random.shuffle(result)
         return result
 
-    def batch_generator(self, dataset, batch_size=32):
+
+    def batch_generator(self, dataset, batch_size=32, size=1.0):
         random.shuffle(dataset)
         batch_x, batch_y, batch_y_mask = [], [], []
         cnt = 0
-        for i in range(len(dataset)):
-            if i % batch_size == 0 and i > 0:
-                yield batch_x, batch_y
-                batch_x, batch_y = [], []
+        for i in range(int(len(dataset)*size)):
             file_path = dataset[i]
             for x_text, y_text in self.extract_statements(file_path):
-                x_tokens = self.tokenize(x_text)
-                y_tokens = self.tokenize(y_text)
+                x_tokens = self.indexize_text(x_text)
+                y_tokens = self.indexize_text(y_text)
                 if len(x_tokens) > self.input_size or len(y_tokens) > self.output_size:
                     continue
                 y_mask = [1.0] * len(y_tokens) + [0.0] * (self.output_size-len(y_tokens))
