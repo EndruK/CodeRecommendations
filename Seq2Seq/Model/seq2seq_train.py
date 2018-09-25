@@ -86,7 +86,8 @@ class Train:
                         feed_dict={
                             self.tf_model.x: batch_x,
                             self.tf_model.y: batch_y,
-                            self.tf_model.y_masks: y_mask
+                            self.tf_model.y_masks: y_mask,
+                            self.tf_model.is_training: True
                         }
                     )
                     train_summ = tf.Summary()
@@ -128,7 +129,7 @@ class Train:
     def validate(self, session, global_step, writer):
         print("start validation")
         validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
-                                                            batch_size=self.batch_size)
+                                                            batch_size=self.batch_size, size=0.1)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.validation_samples)
         batch_cnt = 0
@@ -136,12 +137,13 @@ class Train:
         render_cnt = 0
         for batch_x, batch_y, y_mask in validation_sampler:
             result, acc = session.run(
-                [self.tf_model.inference_argmax,
-                 self.tf_model.inference_batch_accuracy],
+                [self.tf_model.pred_argmax,
+                 self.tf_model.batch_accuracy],
                 feed_dict={
                     self.tf_model.x: batch_x,
                     self.tf_model.y: batch_y,
-                    self.tf_model.y_masks: y_mask
+                    self.tf_model.y_masks: y_mask,
+                    self.tf_model.is_training: False
                 })
             sum_acc += acc
             if batch_cnt % self.print_interval == 0 and batch_cnt > 0:
@@ -155,6 +157,8 @@ class Train:
                 # print("x_sample: {}\ny_sample: {}\ny_predicted: {}".format(x_sample, y_sample, pred_sample))
                 #print(attention_weights.shape)
             batch_cnt += 1
+            if batch_cnt == self.print_interval * 5:
+                break
         if batch_cnt > 0:
             mean_acc = sum_acc / batch_cnt
         else:
@@ -182,11 +186,12 @@ class Train:
         acc_sum = 0
         for batch_x, batch_y, y_mask in test_sampler:
             [acc] = session.run(
-                [self.tf_model.inference_batch_accuracy],
+                [self.tf_model.batch_accuracy],
                 feed_dict={
                     self.tf_model.x: batch_x,
                     self.tf_model.y: batch_y,
-                    self.tf_model.y_masks: y_mask
+                    self.tf_model.y_masks: y_mask,
+                    self.tf_model.is_training: False
                 }
             )
             acc_sum += acc

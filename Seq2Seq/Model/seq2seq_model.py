@@ -32,6 +32,8 @@ class LSTMModel:
             self.embedding_init = self.W.assign(self.embedding_placeholder)
             self.embedding_lookup_x = tf.nn.embedding_lookup(self.W, self.x)
             self.embedding_lookup_y = tf.nn.embedding_lookup(self.W, self.y)
+            self.first_dec_input = tf.Variable([self.model.w2i["<SOS>"]] * self.batch_size, dtype=tf.int32, name="first_dec_input")
+            self.projection = Dense(len(self.model.vocab), use_bias=True, name="output_projection")
             self.is_training = tf.placeholder(tf.bool, [], name="training_inference_switch")
         with tf.name_scope("encoder"):
             encoder_fw_cell = tf.contrib.rnn.BasicLSTMCell(self.enc_hidden, dtype=tf.float32)
@@ -54,53 +56,81 @@ class LSTMModel:
                 h=tf.concat([encoder_out_state_fw.h, encoder_out_state_bw.h], axis=1, name="encoder_state_h")
             )
         with tf.name_scope("decoder"):
+            # decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.dec_hidden, dtype=tf.float32)
+            # projection = Dense(len(self.model.vocab), use_bias=True, name="output_projection")
+            # with tf.variable_scope("decoder"):
+            #     training_helper = tf.contrib.seq2seq.TrainingHelper(self.embedding_lookup_y,
+            #                                                         sequence_length=[self.output_size for _ in
+            #                                                                          range(self.batch_size)])
+            #     training_decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
+            #                                                        training_helper,
+            #                                                        encoder_state,
+            #                                                        projection)
+            #     self.training_decoder_output,_,_ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
+            #                                                                          impute_finished=True,
+            #                                                                          maximum_iterations=self.output_size)
+            # with tf.variable_scope("decoder", reuse=True):
+            #     start_tokens = tf.tile(tf.constant([self.model.w2i["<SOS>"]], dtype=tf.int32),
+            #                            [self.batch_size],
+            #                            name="start_tokens")
+            #     inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(self.W,
+            #                                                                 start_tokens,
+            #                                                                 self.model.w2i["<PAD>"])
+            #     inference_decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
+            #                                                         inference_helper,
+            #                                                         encoder_state,
+            #                                                         projection)
+            #     self.inference_decoder_output,_,_ = tf.contrib.seq2seq.dynamic_decode(inference_decoder,
+            #                                                                           impute_finished=True,
+            #                                                                           maximum_iterations=self.output_size)
             decoder_cell = tf.contrib.rnn.BasicLSTMCell(self.dec_hidden, dtype=tf.float32)
-            projection = Dense(len(self.model.vocab), use_bias=True, name="output_projection")
-            with tf.variable_scope("decoder"):
-                training_helper = tf.contrib.seq2seq.TrainingHelper(self.embedding_lookup_y,
-                                                                    sequence_length=[self.output_size for _ in
-                                                                                     range(self.batch_size)])
-                training_decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
-                                                                   training_helper,
-                                                                   encoder_state,
-                                                                   projection)
-                self.training_decoder_output,_,_ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
-                                                                                     impute_finished=True,
-                                                                                     maximum_iterations=self.output_size)
-            with tf.variable_scope("decoder", reuse=True):
-                start_tokens = tf.tile(tf.constant([self.model.w2i["<SOS>"]], dtype=tf.int32),
-                                       [self.batch_size],
-                                       name="start_tokens")
-                inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(self.W,
-                                                                            start_tokens,
-                                                                            self.model.w2i["<PAD>"])
-                inference_decoder = tf.contrib.seq2seq.BasicDecoder(decoder_cell,
-                                                                    inference_helper,
-                                                                    encoder_state,
-                                                                    projection)
-                self.inference_decoder_output,_,_ = tf.contrib.seq2seq.dynamic_decode(inference_decoder,
-                                                                                      impute_finished=True,
-                                                                                      maximum_iterations=self.output_size)
+            def decoder_loop_fn(time, cell_output, cell_state, loop_state):
+                emit_output = cell_output
+                next_loop_state = None
+                if cell_output is None:
+                    next_cell_state = encoder_state
+                    next_input = tf.nn.embedding_lookup(
+                        self.W, self.first_dec_input)
+                else:
+                    next_cell_state = cell_state
+                    next_input = tf.cond(self.is_training,
+                                         lambda: self.y[:, time - 1],
+                                         lambda: tf.cast(tf.argmax(self.projection(cell_output), axis=1), dtype=tf.int32))
+                    next_input = tf.nn.embedding_lookup(self.W, next_input)
+                finished = (time >= self.output_size)
+                return (finished, next_input, next_cell_state, emit_output, next_loop_state)
+            decoder_emit_ta, _, _ = tf.nn.raw_rnn(decoder_cell, decoder_loop_fn)
+            decoder_out = tf.transpose(decoder_emit_ta.stack(), [1, 0, 2])
+            decoder_projected = self.projection(decoder_out)
 
         with tf.name_scope("metric"):
-            logits = self.training_decoder_output.rnn_output
-            crossentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=self.y, logits=logits)
-            # add masks to loss to ignore padding
-            self.loss = (tf.reduce_sum(crossentropy * tf.stack(self.y_masks)) / (self.batch_size * self.output_size))
+            logits = decoder_projected
+            crossentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=self.y, logits=logits)
+            self.loss = tf.reduce_mean(crossentropy)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
+            self.pred_argmax = tf.cast(tf.argmax(logits, axis=2), tf.int32)
+            self.batch_accuracy = tf.reduce_sum(tf.cast(tf.equal(self.pred_argmax, self.y), tf.float32) * self.y_masks) / tf.cast(
+                tf.reduce_sum(self.y_masks), tf.float32)
 
-            with tf.name_scope("validation"):
-                self.pred_argmax = tf.cast(tf.argmax(logits, 2), dtype=tf.int32)
-                # apply y_masks to prevent padding influence
-                # self.batch_accuracy = tf.reduce_mean(
-                #     tf.cast(tf.equal(pred_argmax, self.y), tf.float32)*self.y_masks)
-                self.batch_accuracy = tf.reduce_sum(tf.cast(tf.equal(self.pred_argmax, self.y), tf.float32) *
-                                                    self.y_masks) / tf.cast(tf.reduce_sum(self.y_masks), tf.float32)
-        with tf.name_scope("inference_metric"):
-            i_logits = self.inference_decoder_output.rnn_output
-            self.inference_argmax = tf.cast(tf.argmax(i_logits, 2), dtype=tf.int32)
-            self.inference_batch_accuracy = tf.reduce_sum(tf.cast(tf.equal(self.inference_argmax, self.y), tf.float32) *
-                                                          self.y_masks) / tf.cast(tf.reduce_sum(self.y_masks), tf.float32)
+        # with tf.name_scope("metric"):
+        #     logits = self.training_decoder_output.rnn_output
+        #     crossentropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        #         labels=self.y, logits=logits)
+        #     # add masks to loss to ignore padding
+        #     self.loss = (tf.reduce_sum(crossentropy * tf.stack(self.y_masks)) / (self.batch_size * self.output_size))
+        #     self.optimizer = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
+        #
+        #     with tf.name_scope("validation"):
+        #         self.pred_argmax = tf.cast(tf.argmax(logits, 2), dtype=tf.int32)
+        #         # apply y_masks to prevent padding influence
+        #         # self.batch_accuracy = tf.reduce_mean(
+        #         #     tf.cast(tf.equal(pred_argmax, self.y), tf.float32)*self.y_masks)
+        #         self.batch_accuracy = tf.reduce_sum(tf.cast(tf.equal(self.pred_argmax, self.y), tf.float32) *
+        #                                             self.y_masks) / tf.cast(tf.reduce_sum(self.y_masks), tf.float32)
+        # with tf.name_scope("inference_metric"):
+        #     i_logits = self.inference_decoder_output.rnn_output
+        #     self.inference_argmax = tf.cast(tf.argmax(i_logits, 2), dtype=tf.int32)
+        #     self.inference_batch_accuracy = tf.reduce_sum(tf.cast(tf.equal(self.inference_argmax, self.y), tf.float32) *
+        #                                                   self.y_masks) / tf.cast(tf.reduce_sum(self.y_masks), tf.float32)
 
 
