@@ -157,6 +157,7 @@ class Train:
                 # print("x_sample: {}\ny_sample: {}\ny_predicted: {}".format(x_sample, y_sample, pred_sample))
                 #print(attention_weights.shape)
             batch_cnt += 1
+            # TODO: solve this smarter (eg. echecking how many validation pairs there are)
             if batch_cnt == self.print_interval * 5:
                 break
         if batch_cnt > 0:
