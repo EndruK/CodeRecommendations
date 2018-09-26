@@ -7,7 +7,7 @@ import sys
 # Mode: train | generate
 MODE = "train"
 # Module: s2s | s2sAtt | s2sAttCopy | t2t"
-RUN_MODULE = "s2s"
+RUN_MODULE = "s2sAtt"
 
 if __name__ == "__main__":
     if MODE == "train":

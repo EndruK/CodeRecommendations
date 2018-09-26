@@ -1,6 +1,6 @@
 from Seq2SeqAtt.Generate.seq2seqAtt_generate import Generate
 from Seq2SeqAtt.Utils.regex_tokenizer import RegexTokenizer
-from Seq2SeqAtt.Preprocessing.Embedding.seq2seq_embedding_model import Seq2SeqEmbeddingModel
+from Seq2SeqAtt.Preprocessing.Embedding.json_embedding import JSONEmbedding
 from Seq2SeqAtt.Preprocessing.Dataset.seq2seq_dataset import Seq2SeqDataset
 import argparse, configparser, sys, os, datetime, operator
 def run():
@@ -48,9 +48,8 @@ def run():
         args.experiment_path, output_config.get("Dumping", "embedding_checkpoint_path"))
     embedding_matrix_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "embedding_matrix_path"))
-    embedding_model = Seq2SeqEmbeddingModel(batch_size=experiment_config.getint("Embeddings", "batch_size"),
+    embedding_model = JSONEmbedding(batch_size=experiment_config.getint("Embeddings", "batch_size"),
                                             dataset=dataset,
-                                            input_dataset_path=machine_config.get("Dataset", "embedding_input_path"),
                                             embedding_size=experiment_config.getint("Embeddings", "hidden_size"),
                                             logs_path=embedding_log_path,
                                             model_checkpoint_path=embedding_checkpoint_path,

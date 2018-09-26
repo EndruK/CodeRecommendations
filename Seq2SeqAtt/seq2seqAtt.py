@@ -1,8 +1,6 @@
-from Seq2SeqAtt.Preprocessing.Dataset.seq2seq_dataset import Seq2SeqDataset
-from Seq2SeqAtt.Preprocessing.Dataset.seq2seq_sample_data import Seq2SeqSampleData
-from Seq2SeqAtt.Utils.regex_tokenizer import RegexTokenizer
-from Seq2SeqAtt.Preprocessing.Embedding.seq2seq_embedding_model import Seq2SeqEmbeddingModel
+from Seq2SeqAtt.Preprocessing.Embedding.json_embedding import JSONEmbedding
 from Seq2SeqAtt.Model.seq2seqAtt_train import Train
+from Seq2SeqAtt.Preprocessing.Dataset.JSON.dataset import JsonDataset
 import argparse, configparser, os, sys
 
 def run():
@@ -44,22 +42,28 @@ def run():
     ####################################################################################################################
 
     # use the regex tokenizer
-    tokenizer = RegexTokenizer()
-
-    # join the given experiment_path
-    vocab_path = os.path.join(args.experiment_path, output_config.get("Dumping", "vocab_path"))
-
-    subset_paths = machine_config.get("Dataset", "subset_paths").split(",")
-    subset_paths = [os.path.join(args.experiment_path, p) for p in subset_paths]
-
-    # create vocab
-    dataset = Seq2SeqDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
-                             tokenizer=tokenizer,
-                             vocab_path=vocab_path,
-                             dump_path=args.experiment_path,
-                             subset_paths=subset_paths)
+    # tokenizer = RegexTokenizer()
+    #
+    # # join the given experiment_path
+    # vocab_path = os.path.join(args.experiment_path, output_config.get("Dumping", "vocab_path"))
+    #
+    # subset_paths = machine_config.get("Dataset", "subset_paths").split(",")
+    # subset_paths = [os.path.join(args.experiment_path, p) for p in subset_paths]
+    #
+    # # create vocab
+    # dataset = Seq2SeqDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
+    #                          tokenizer=tokenizer,
+    #                          vocab_path=vocab_path,
+    #                          dump_path=args.experiment_path,
+    #                          subset_paths=subset_paths)
+    # if experiment_config.getboolean("Meta", "preprocess_dataset"):
+    #     dataset.create(shuffle=experiment_config.getboolean("Model", "shuffle_dataset"))
+    # else:
+    #     dataset.load()
+    dataset = JsonDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
+                          output_path=args.experiment_path)
     if experiment_config.getboolean("Meta", "preprocess_dataset"):
-        dataset.create(shuffle=experiment_config.getboolean("Model", "shuffle_dataset"))
+        dataset.create(shuffle=True, word_threshold=5)
     else:
         dataset.load()
 
@@ -67,28 +71,28 @@ def run():
     ### Create Dataset Sampler #########################################################################################
     ####################################################################################################################
 
-    dataset_sampler = Seq2SeqSampleData(dataset=dataset,
-                                        input_sample_size=experiment_config.getint("Model", "input_size"),
-                                        output_sample_size=experiment_config.getint("Model", "output_size"),
-                                        batch_size=experiment_config.getint("Model", "batch_size"))
+    # dataset_sampler = Seq2SeqSampleData(dataset=dataset,
+    #                                     input_sample_size=experiment_config.getint("Model", "input_size"),
+    #                                     output_sample_size=experiment_config.getint("Model", "output_size"),
+    #                                     batch_size=experiment_config.getint("Model", "batch_size"))
 
     ####################################################################################################################
     ### Train Embeddings ###############################################################################################
     ####################################################################################################################
+    # TODO: --> use json dataset for embedding
     embedding_log_path = os.path.join(
         args.experiment_path, output_config.get("Logging", "embedding_log_path"))
     embedding_checkpoint_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "embedding_checkpoint_path"))
     embedding_matrix_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "embedding_matrix_path"))
-    embedding_model = Seq2SeqEmbeddingModel(batch_size=experiment_config.getint("Embeddings", "batch_size"),
-                                            dataset=dataset,
-                                            input_dataset_path=machine_config.get("Dataset", "embedding_input_path"),
-                                            embedding_size=experiment_config.getint("Embeddings", "hidden_size"),
-                                            logs_path=embedding_log_path,
-                                            model_checkpoint_path=embedding_checkpoint_path,
-                                            epochs=experiment_config.getint("Embeddings", "epochs"),
-                                            gpu=experiment_config.getint("Meta", "gpu"))
+    embedding_model = JSONEmbedding(batch_size=experiment_config.getint("Embeddings", "batch_size"),
+                                    dataset=dataset,
+                                    embedding_size=experiment_config.getint("Embeddings", "hidden_size"),
+                                    logs_path=embedding_log_path,
+                                    model_checkpoint_path=embedding_checkpoint_path,
+                                    epochs=experiment_config.getint("Embeddings", "epochs"),
+                                    gpu=experiment_config.getint("Meta", "gpu"))
     if experiment_config.getboolean("Meta", "train_embeddings"):
         embedding_model.train()
         embedding_model.store_embedding_as_np(embedding_matrix_path)
@@ -112,7 +116,6 @@ def run():
     training_checkpoint_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
     nn_model = Train(datamodel=dataset,
-                     sampler=dataset_sampler,
                      embedding_model=embedding_model,
                      logs_path=training_log_path,
                      epochs=experiment_config.getint("Model", "epochs"),
@@ -121,5 +124,6 @@ def run():
                      validation_interval=experiment_config.getint("Metric", "validation_interval"),
                      checkpoint_path=training_checkpoint_path,
                      gpu=experiment_config.getint("Meta", "gpu"),
-                     print_interval=experiment_config.getint("Metric", "print_interval"))
+                     print_interval=experiment_config.getint("Metric", "print_interval"),
+                     batch_size=experiment_config.getint("Model", "batch_size"))
     nn_model.train()

@@ -17,7 +17,6 @@ class Train:
 
     def __init__(self,
                  datamodel,
-                 sampler,
                  embedding_model,
                  logs_path,
                  checkpoint_path,
@@ -26,9 +25,9 @@ class Train:
                  learning_rate,
                  validation_interval,
                  gpu,
-                 print_interval):
+                 print_interval,
+                 batch_size):
         self.datamodel = datamodel
-        self.sampler = sampler
         self.embedding_model = embedding_model
         self.enc_hidden = hidden_size
         self.dec_hidden = hidden_size*2
@@ -38,17 +37,16 @@ class Train:
         self.epochs = epochs
         self.validation_interval = validation_interval
         self.print_interval = print_interval
+        self.batch_size = batch_size
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
-        self.tf_model = AttentionModel(input_size=sampler.input_sample_size,
-                                       output_size=sampler.output_sample_size,
-                                       batch_size=sampler.batch_size,
+        self.tf_model = AttentionModel(input_size=datamodel.input_size,
+                                       output_size=datamodel.output_size,
+                                       batch_size=self.batch_size,
                                        model=datamodel,
                                        embed_size=embedding_model.embedding_size,
                                        enc_hidden_size=self.enc_hidden,
-                                       enc_layer_depth=1,
                                        dec_hidden_size=self.dec_hidden,
-                                       dec_layer_depth=1,
                                        lr=self.learning_rate)
         self.tf_model.build_graph()
         self.render_cnt = 0
@@ -75,10 +73,12 @@ class Train:
             print("start training")
             for epoch in range(self.epochs):
                 train_acc_sum = 0
-                batch_sampler = self.sampler.get_batch(
-                    self.datamodel.train_samples)
+                training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
+                                                                  batch_size=self.batch_size)
+                # batch_sampler = self.sampler.get_batch(
+                #     self.datamodel.train_samples)
                 batch_cnt = 0
-                for batch_x, _, batch_y, y_mask in batch_sampler:
+                for batch_x, batch_y, y_mask in training_sampler:
                     _, loss, batch_acc = session.run(
                         [self.tf_model.optimizer,
                          self.tf_model.loss,
@@ -129,12 +129,14 @@ class Train:
 
     def validate(self, session, global_step, writer):
         print("start validation")
-        batch_sampler = self.sampler.get_batch(
-            self.datamodel.validation_samples)
+        validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
+                                                            batch_size=self.batch_size, size=0.1)
+        # batch_sampler = self.sampler.get_batch(
+        #     self.datamodel.validation_samples)
         batch_cnt = 0
         sum_acc = 0
         render_cnt = 0
-        for batch_x, _, batch_y, y_mask in batch_sampler:
+        for batch_x, batch_y, y_mask in validation_sampler:
             result, acc, attention_weights = session.run(
                 [self.tf_model.pred_argmax,
                  self.tf_model.batch_accuracy,
@@ -148,14 +150,17 @@ class Train:
             sum_acc += acc
             if batch_cnt % self.print_interval == 0 and batch_cnt > 0:
                 print("batch",str(batch_cnt),"current accuracy:", str(sum_acc/batch_cnt))
-                x_sample = [self.datamodel.index_to_word[w] for w in batch_x[0]]
-                y_sample = [self.datamodel.index_to_word[w] for w in batch_y[0]]
-                pred_sample = [self.datamodel.index_to_word[w] for w in result[0]]
+                x_sample = [self.datamodel.i2w[w] for w in batch_x[0]]
+                y_sample = [self.datamodel.i2w[w] for w in batch_y[0]]
+                pred_sample = [self.datamodel.i2w[w] for w in result[0]]
                 self.render_weights(attention_weights, batch_x, result, global_step, render_cnt)
                 render_cnt += 1
                 # print("x_sample: {}\ny_sample: {}\ny_predicted: {}".format(x_sample, y_sample, pred_sample))
                 #print(attention_weights.shape)
             batch_cnt += 1
+            # TODO: solve this smarter (eg. echecking how many validation pairs there are)
+            if batch_cnt == self.print_interval * 5:
+                break
         if batch_cnt > 0:
             mean_acc = sum_acc / batch_cnt
         else:
@@ -173,13 +178,15 @@ class Train:
 
     def test(self, session, writer):
         print("start testing")
-        batch_sampler = self.sampler.get_batch(
-            self.datamodel.test_samples)
+        test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
+                                                      batch_size=self.batch_size)
+        # batch_sampler = self.sampler.get_batch(
+        #     self.datamodel.test_samples)
         batch_cnt = 0
         summ_add = 0
         test_summ = tf.Summary()
         acc_sum = 0
-        for batch_x, _, batch_y, y_mask in batch_sampler:
+        for batch_x, batch_y, y_mask in test_sampler:
             [acc] = session.run(
                 [self.tf_model.batch_accuracy],
                 feed_dict={
@@ -209,9 +216,9 @@ class Train:
         attention = attention[0]
 
         input_sent = input_sent[0]
-        input_sent = [self.datamodel.index_to_word[i] for i in input_sent]
+        input_sent = [self.datamodel.i2w[i] for i in input_sent]
         output_sent = output_sent[0]
-        output_sent = [self.datamodel.index_to_word[i] for i in output_sent]
+        output_sent = [self.datamodel.i2w[i] for i in output_sent]
 
         fig = plt.figure(figsize=(20,20))
         ax = fig.add_subplot(1,1,1)

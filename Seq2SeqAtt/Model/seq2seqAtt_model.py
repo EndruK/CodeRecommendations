@@ -9,9 +9,7 @@ class AttentionModel:
                  model,
                  embed_size,
                  enc_hidden_size,
-                 enc_layer_depth,
                  dec_hidden_size,
-                 dec_layer_depth,
                  lr):
         self.input_size = input_size
         self.output_size = output_size
@@ -19,9 +17,7 @@ class AttentionModel:
         self.model = model
         self.embed_size = embed_size
         self.enc_hidden_size = enc_hidden_size
-        self.enc_layer_depth = enc_layer_depth
         self.dec_hidden_size = dec_hidden_size
-        self.dec_layer_depth = dec_layer_depth
         self.attention_size = 60
         self.lr = lr
 
@@ -59,7 +55,7 @@ class AttentionModel:
 
         # Decoder variables
         self.projection = tf.layers.Dense(len(self.model.vocab))
-        self.first_dec_input = tf.Variable([self.model.word_to_index["<GO>"]] * self.batch_size, dtype=tf.int32,
+        self.first_dec_input = tf.Variable([self.model.w2i["<SOS>"]] * self.batch_size, dtype=tf.int32,
                                            name="first_dec_input")
 
         # Inference
