@@ -8,6 +8,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import matplotlib.dates as mdates
 # from tf.batch_queue import BatchQueue
 
 class Train:
@@ -222,6 +223,7 @@ class Train:
 
         fig = plt.figure(figsize=(20,20))
         ax = fig.add_subplot(1,1,1)
+        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0,1]))
         ax.matshow(attention, cmap='viridis')
         fontdict = {'fontsize': 12}
         ax.set_xticklabels([''] + input_sent, fontdict=fontdict, rotation=90)
