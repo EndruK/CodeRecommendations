@@ -223,12 +223,13 @@ class Train:
 
         fig = plt.figure(figsize=(20,20))
         ax = fig.add_subplot(1,1,1)
-        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0,1]))
         ax.matshow(attention, cmap='viridis')
         fontdict = {'fontsize': 12}
         ax.set_xticklabels([''] + input_sent, fontdict=fontdict, rotation=90)
         ax.set_yticklabels([''] + output_sent, fontdict=fontdict)
-        ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+        myticker = ticker.MultipleLocator(1)
+        myticker.MAXTICKS = 60000
+        ax.xaxis.set_major_locator(myticker)
         ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
         if not os.path.isdir(os.path.join(self.logs_path, "render")):
             os.mkdir(os.path.join(self.logs_path, "render"))
