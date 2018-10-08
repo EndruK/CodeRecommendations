@@ -22,7 +22,8 @@ def process_vocab_part(file_list, process):
 class JsonDataset:
     def __init__(self,
                  dataset_path,
-                 output_path):
+                 output_path,
+                 dump_path):
         self.dataset_path = dataset_path
         self.output_path = output_path
         self.file_paths = []
@@ -43,6 +44,8 @@ class JsonDataset:
         self.output_size = 200
 
         self.skip_size = 5
+
+        self.dump_path = dump_path
 
     def extract_statements(self, file_path, limit=100):
         text = self.read_file(file_path)
@@ -258,11 +261,21 @@ class JsonDataset:
     def indexize_text(self, text):
         result = []
         tokens = self.tokenize(text)
-        for token in tokens:
-            if token in self.vocab:
-                result.append(self.w2i[token])
+        new_tokens = []
+        for i in range(len(tokens)):
+            token = tokens[i]
+            if token.startswith("'") and len(token) > 1:
+                new_tokens.append(token[0])
+                new_tokens.append(token[1:])
             else:
+                new_tokens.append(token)
+        tokens = new_tokens
+        del new_tokens
+        for token in tokens:
+            if token not in self.vocab:
                 result.append(self.w2i[self.UNK])
+            else:
+                result.append(self.w2i[token])
         return result
 
     def embedding_generator(self, batch_size=32):
@@ -308,6 +321,8 @@ class JsonDataset:
         for i in range(int(len(dataset)*size)):
             file_path = dataset[i]
             for x_text, y_text in self.extract_statements(file_path):
+                #print(x_text)
+                #print(nltk.word_tokenize(x_text))
                 x_tokens = self.indexize_text(x_text)
                 y_tokens = self.indexize_text(y_text)
                 if len(x_tokens) > self.input_size or len(y_tokens) > self.output_size:
@@ -326,3 +341,54 @@ class JsonDataset:
         for i in range(len(tokens)):
             result[i] = tokens[i]
         return result
+
+    # this is for exporting
+    def pre_build_dataset_pairs(self, dataset, name, file_size=int(5e4)):
+        print("start building dataset")
+        dataset_generator = self.batch_generator(dataset, batch_size=1)
+        data = []
+        file_cnt = 0
+        item_cnt = 0
+        for x, y, mask in dataset_generator:
+            data.append([x, y, mask])
+            item_cnt += 1
+            if item_cnt % 500 == 0:
+                print(item_cnt)
+            if len(data) == file_size:
+                # export it
+                filename = os.path.join(self.dump_path, name + "." + ".pairs" + str(file_cnt))
+                with open(filename, "wb") as f:
+                    pkl.dump(data, f)
+                # clear array
+                data = []
+                file_cnt += 1
+
+    def pre_build_pair_batch_generator(self, name, batch_size=32, size=1.0):
+        # first get all files for the given name
+        filelist = []
+        for file in os.listdir(self.dump_path):
+            if file.startswith(name):
+                filelist.append(os.path.join(self.dump_path, file))
+        random.shuffle(filelist)
+        dataset_size = 0
+        for file in filelist:
+            with open(file, "rb") as f:
+                tmp = pkl.load(f)
+            dataset_size += len(tmp)
+            del tmp
+        cnt = 0
+        batch_x, batch_y, batch_y_masks = [], [], []
+        for file in filelist:
+            with open(file, "rb") as f:
+                data = pkl.load(f)
+            random.shuffle(data)
+            for x, y, mask in data:
+                batch_x.append(x)
+                batch_y.append(y)
+                batch_y_masks.append(mask)
+                cnt += 1
+                if cnt == int(dataset_size * size):
+                    return
+                if len(batch_x) == batch_size:
+                    yield batch_x, batch_y, batch_y_masks
+                    batch_x, batch_y, batch_y_masks = [], [], []

@@ -258,11 +258,21 @@ class JsonDataset:
     def indexize_text(self, text):
         result = []
         tokens = self.tokenize(text)
-        for token in tokens:
-            if token in self.vocab:
-                result.append(self.w2i[token])
+        new_tokens = []
+        for i in range(len(tokens)):
+            token = tokens[i]
+            if token.startswith("'") and len(token) > 1:
+                new_tokens.append(token[0])
+                new_tokens.append(token[1:])
             else:
+                new_tokens.append(token)
+        tokens = new_tokens
+        del new_tokens
+        for token in tokens:
+            if token not in self.vocab:
                 result.append(self.w2i[self.UNK])
+            else:
+                result.append(self.w2i[token])
         return result
 
     def embedding_generator(self, batch_size=32):

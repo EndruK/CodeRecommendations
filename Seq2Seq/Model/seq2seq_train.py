@@ -75,6 +75,8 @@ class Train:
                 train_acc_sum = 0
                 training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
                                                                   batch_size=self.batch_size)
+                # training_sampler = self.datamodel.pre_build_pair_batch_generator(name="training",
+                #                                                                  batch_size=self.batch_size)
                 # batch_sampler = self.sampler.get_batch(
                 #     self.datamodel.train_samples)
                 batch_cnt = 0
@@ -130,6 +132,9 @@ class Train:
         print("start validation")
         validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
                                                             batch_size=self.batch_size, size=0.1)
+        #validation_sampler = self.datamodel.pre_build_pair_batch_generator(name="validation",
+        #                                                                   batch_size=self.batch_size,
+        #                                                                   size=0.1)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.validation_samples)
         batch_cnt = 0
@@ -179,6 +184,8 @@ class Train:
         print("start testing")
         test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
                                                       batch_size=self.batch_size)
+        # test_sampler = self.datamodel.pre_build_pair_batch_generator(name="testing",
+        #                                                              batch_size=self.batch_size)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.test_samples)
         batch_cnt = 0

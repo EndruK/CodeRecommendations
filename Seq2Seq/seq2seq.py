@@ -57,8 +57,10 @@ def run():
     #                          tokenizer=tokenizer,
     #                          vocab_path=vocab_path,
     #                          subset_paths=subset_paths)
+    #destination = os.path.join(args.experiment_path, "pre_built_dataset")
     dataset = JsonDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
-                          output_path=args.experiment_path)
+                          output_path=args.experiment_path,
+                          dump_path=None)
 
 
     if experiment_config.getboolean("Meta", "preprocess_dataset"):
@@ -66,6 +68,15 @@ def run():
         dataset.create(shuffle=True, word_threshold=5)
     else:
         dataset.load()
+    #TODO:
+
+    # if not os.path.isdir(destination):
+    #     os.makedirs(destination)
+    # if len(os.listdir(destination)) == 0:
+    #     dataset.pre_build_dataset_pairs(dataset.training_files, "training")
+    #     dataset.pre_build_dataset_pairs(dataset.validation_files, "validation")
+    #     dataset.pre_build_dataset_pairs(dataset.testing_files, "testing")
+
 
     ####################################################################################################################
     ### Create Dataset Sampler #########################################################################################
