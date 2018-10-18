@@ -5,7 +5,7 @@ import Seq2SeqAtt.generate as s2sAttGen
 import sys
 
 # Mode: train | generate
-MODE = "train"
+MODE = "generate"
 # Module: s2s | s2sAtt | s2sAttCopy | t2t"
 RUN_MODULE = "s2s"
 

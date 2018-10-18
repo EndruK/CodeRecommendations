@@ -4,7 +4,17 @@ from Seq2Seq.Preprocessing.Dataset.seq2seq_sample_data import Seq2SeqSampleData
 from Seq2Seq.Utils.regex_tokenizer import RegexTokenizer
 from Seq2Seq.Preprocessing.Embedding.json_embedding import JSONEmbedding
 from Seq2Seq.Model.seq2seq_train import Train
-import argparse, configparser, os, sys
+import argparse, configparser, os, sys, math, multiprocessing
+
+
+def process_files(dataset, file_list, name, processid):
+    # dataset = JsonDataset(dataset_path=dataset_params[0],
+    #                       output_path=dataset_params[1],
+    #                       dump_path=dataset_params[2])
+    # dataset.load()
+    #
+    dataset.pre_build_dataset_pairs(file_list, name, processid)
+    return True
 
 def run():
     ####################################################################################################################
@@ -57,10 +67,11 @@ def run():
     #                          tokenizer=tokenizer,
     #                          vocab_path=vocab_path,
     #                          subset_paths=subset_paths)
-    #destination = os.path.join(args.experiment_path, "pre_built_dataset")
+    destination = os.path.join(args.experiment_path, "pre_built_dataset")
     dataset = JsonDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
                           output_path=args.experiment_path,
-                          dump_path=None)
+                          dump_path=destination)
+
 
 
     if experiment_config.getboolean("Meta", "preprocess_dataset"):
@@ -70,12 +81,32 @@ def run():
         dataset.load()
     #TODO:
 
-    # if not os.path.isdir(destination):
-    #     os.makedirs(destination)
-    # if len(os.listdir(destination)) == 0:
-    #     dataset.pre_build_dataset_pairs(dataset.training_files, "training")
-    #     dataset.pre_build_dataset_pairs(dataset.validation_files, "validation")
-    #     dataset.pre_build_dataset_pairs(dataset.testing_files, "testing")
+    if not os.path.isdir(destination):
+        os.makedirs(destination)
+    if len(os.listdir(destination)) == 0:
+
+
+        def parallel(data, name):
+            num_threads = 7
+            length = math.floor(len(data) / num_threads)
+            jobs = []
+            pool = multiprocessing.Pool(processes=num_threads)
+            for i in range(num_threads):
+                start_index = i * length
+                end_index = (i+1) * length
+                if i == num_threads-1:
+                    process_file_list = data[start_index:]
+                else:
+                    process_file_list = data[start_index:end_index]
+                # (dataset, file_list, name, processid)
+                p = pool.apply_async(process_files, args=(dataset, process_file_list, name, i))
+                jobs.append(p)
+            bla = []
+            for p in jobs:
+                p.get()
+        parallel(dataset.training_files, "training")
+        parallel(dataset.validation_files, "validation")
+        parallel(dataset.testing_files, "testing")
 
 
     ####################################################################################################################

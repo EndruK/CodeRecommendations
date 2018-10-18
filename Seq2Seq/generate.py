@@ -1,8 +1,12 @@
-from Seq2Seq.Generate.seq2seq_generate import Generate
-from Seq2Seq.Utils.regex_tokenizer import RegexTokenizer
-from Seq2Seq.Preprocessing.Embedding.seq2seq_embedding_model import Seq2SeqEmbeddingModel
 from Seq2Seq.Preprocessing.Dataset.seq2seq_dataset import Seq2SeqDataset
-import argparse, configparser, sys, os, datetime, operator
+from Seq2Seq.Preprocessing.Dataset.JSON.dataset import JsonDataset
+from Seq2Seq.Preprocessing.Dataset.seq2seq_sample_data import Seq2SeqSampleData
+from Seq2Seq.Utils.regex_tokenizer import RegexTokenizer
+from Seq2Seq.Preprocessing.Embedding.json_embedding import JSONEmbedding
+from Seq2Seq.Model.seq2seq_train import Train
+import argparse, configparser, os, sys, math, multiprocessing
+import numpy as np
+
 def seq2seq_generate():
     parser = argparse.ArgumentParser(description="Load configs")
     parser.add_argument('machine_config',
@@ -18,7 +22,13 @@ def seq2seq_generate():
                         type=str,
                         help='path to where to store everything in',
                         default=".")
+    parser.add_argument('--input',
+                        type=str,
+                        help='x string')
     args = parser.parse_args()
+    ####################################################################################################################
+    ### Read Configs ###################################################################################################
+    ####################################################################################################################
 
     machine_config = configparser.RawConfigParser()
     machine_config.read(args.machine_config)
@@ -29,16 +39,10 @@ def seq2seq_generate():
     experiment_config = configparser.RawConfigParser()
     experiment_config.read(args.experiment_config)
 
-    tokenizer = RegexTokenizer()
-    vocab_path = os.path.join(args.experiment_path, output_config.get("Dumping", "vocab_path"))
-
-    subset_paths = machine_config.get("Dataset", "subset_paths").split(",")
-    subset_paths = [os.path.join(args.experiment_path, p) for p in subset_paths]
-
-    dataset = Seq2SeqDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
-                             tokenizer=tokenizer,
-                             vocab_path=vocab_path,
-                             subset_paths=subset_paths)
+    destination = os.path.join(args.experiment_path, "pre_built_dataset")
+    dataset = JsonDataset(dataset_path=machine_config.get("Dataset", "corpus_path"),
+                          output_path=args.experiment_path,
+                          dump_path=destination)
     dataset.load()
 
     embedding_log_path = os.path.join(
@@ -47,43 +51,42 @@ def seq2seq_generate():
         args.experiment_path, output_config.get("Dumping", "embedding_checkpoint_path"))
     embedding_matrix_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "embedding_matrix_path"))
-    embedding_model = Seq2SeqEmbeddingModel(batch_size=experiment_config.getint("Embeddings", "batch_size"),
-                                            dataset=dataset,
-                                            input_dataset_path=machine_config.get("Dataset", "embedding_input_path"),
-                                            embedding_size=experiment_config.getint("Embeddings", "hidden_size"),
-                                            logs_path=embedding_log_path,
-                                            model_checkpoint_path=embedding_checkpoint_path,
-                                            epochs=experiment_config.getint("Embeddings", "epochs"),
-                                            gpu=experiment_config.getint("Meta", "gpu"))
+    embedding_model = JSONEmbedding(batch_size=experiment_config.getint("Embeddings", "batch_size"),
+                                    dataset=dataset,
+                                    embedding_size=experiment_config.getint("Embeddings", "hidden_size"),
+                                    logs_path=embedding_log_path,
+                                    model_checkpoint_path=embedding_checkpoint_path,
+                                    epochs=experiment_config.getint("Embeddings", "epochs"),
+                                    gpu=experiment_config.getint("Meta", "gpu"))
+    # embedding_model.restore_np_embeddings(embedding_matrix_path)
 
-    #if os.path.isfile(embedding_matrix_path):
-    #    print("restore embeddings from", embedding_matrix_path)
-    #    embedding_model.restore_np_embeddings(embedding_matrix_path)
-    #else:
-    #    sys.exit(0)
-    enc_hidden = experiment_config.getint("Model", "hidden_size")
-    dec_hidden = experiment_config.getint("Model", "hidden_size")
-    gen = Generate(dataset, embedding_model, enc_hidden, dec_hidden)
+    training_log_path = os.path.join(
+        args.experiment_path, output_config.get("Logging", "training_log_path"))
+    training_checkpoint_path = os.path.join(
+        args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
+    nn_model = Train(datamodel=dataset,
+                     embedding_model=embedding_model,
+                     logs_path=training_log_path,
+                     epochs=experiment_config.getint("Model", "epochs"),
+                     hidden_size=experiment_config.getint("Model", "hidden_size"),
+                     learning_rate=experiment_config.getfloat("Model", "learning_rate"),
+                     validation_interval=experiment_config.getint("Metric", "validation_interval"),
+                     checkpoint_path=training_checkpoint_path,
+                     gpu=experiment_config.getint("Meta", "gpu"),
+                     print_interval=experiment_config.getint("Metric", "print_interval"),
+                     batch_size=experiment_config.getint("Model", "batch_size"))
 
-    # training_checkpoint_path = os.path.join(
-    #     args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
-    #
-    # training_checkpoint_path = os.path.join(training_checkpoint_path, "2018-09-05 15:38:16.152787")
-    #
-    # # 2018-09-05 15:38:16.152787
-    # # get files in dir
-    # files = os.listdir(training_checkpoint_path)
-    # dates = {}
-    # for file in files:
-    #     lhs = file.split(".")[0]
-    #     try:
-    #         t = datetime.datetime.strptime(lhs, '%Y-%m-%d %H:%M:%S')
-    #         if t not in dates and lhs != "checkpoint":
-    #             dates[t] = file
-    #     except:
-    #         continue
-    # sorted_dates = sorted([[key, value] for key,value in dates.items()], key=lambda x: x[1], reverse=True)
-    # print(sorted_dates)
-    #
-    # gen.restore_checkpoint(training_checkpoint_path)
-    #gen.gen()
+    if len(args.input) < 1:
+        test_batch_generator = dataset.pre_build_pair_batch_generator("testing", batch_size=16)
+        input_xym = next(test_batch_generator)
+    else:
+        tokens = dataset.indexize_text(args.input)
+        tokens = dataset.pad(tokens, dataset.input_size)
+        # TODO: this is not optimal --- tf expects the batch size which it used to train on
+        batch = [tokens] * experiment_config.getint("Model", "batch_size")
+        x = batch
+        y = np.zeros([experiment_config.getint("Model", "batch_size"), dataset.output_size])
+        mask = np.zeros([experiment_config.getint("Model", "batch_size"), dataset.output_size])
+        input_xym = (x, y, mask)
+    result = nn_model.generate(input_xym)
+    print(result)

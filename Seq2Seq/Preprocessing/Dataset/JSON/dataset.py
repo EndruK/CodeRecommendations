@@ -343,20 +343,20 @@ class JsonDataset:
         return result
 
     # this is for exporting
-    def pre_build_dataset_pairs(self, dataset, name, file_size=int(5e4)):
+    def pre_build_dataset_pairs(self, dataset, name, processid=0, file_size=int(5e3)):
         print("start building dataset")
         dataset_generator = self.batch_generator(dataset, batch_size=1)
         data = []
         file_cnt = 0
         item_cnt = 0
-        for x, y, mask in dataset_generator:
+        for [x], [y], [mask] in dataset_generator:
             data.append([x, y, mask])
             item_cnt += 1
             if item_cnt % 500 == 0:
-                print(item_cnt)
+                print(processid, ":", item_cnt)
             if len(data) == file_size:
                 # export it
-                filename = os.path.join(self.dump_path, name + "." + ".pairs" + str(file_cnt))
+                filename = os.path.join(self.dump_path, name + "." + "process" + str(processid) + ".pairs." + str(file_cnt))
                 with open(filename, "wb") as f:
                     pkl.dump(data, f)
                 # clear array

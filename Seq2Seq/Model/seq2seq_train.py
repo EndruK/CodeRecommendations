@@ -73,10 +73,10 @@ class Train:
             print("start training")
             for epoch in range(self.epochs):
                 train_acc_sum = 0
-                training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
-                                                                  batch_size=self.batch_size)
-                # training_sampler = self.datamodel.pre_build_pair_batch_generator(name="training",
-                #                                                                  batch_size=self.batch_size)
+                # training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
+                #                                                   batch_size=self.batch_size)
+                training_sampler = self.datamodel.pre_build_pair_batch_generator(name="training",
+                                                                                 batch_size=self.batch_size)
                 # batch_sampler = self.sampler.get_batch(
                 #     self.datamodel.train_samples)
                 batch_cnt = 0
@@ -117,6 +117,7 @@ class Train:
                         valid_acc = self.validate(session, global_step, writer)
                         if valid_acc > highest_acc:
                             highest_acc = valid_acc
+                            now = datetime.now()
                             path = os.path.join(self.checkpoint_path, str(now))
                             if not os.path.isdir(path):
                                 os.makedirs(path)
@@ -130,11 +131,11 @@ class Train:
 
     def validate(self, session, global_step, writer):
         print("start validation")
-        validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
-                                                            batch_size=self.batch_size, size=0.1)
-        #validation_sampler = self.datamodel.pre_build_pair_batch_generator(name="validation",
-        #                                                                   batch_size=self.batch_size,
-        #                                                                   size=0.1)
+        # validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
+        #                                                     batch_size=self.batch_size, size=0.1)
+        validation_sampler = self.datamodel.pre_build_pair_batch_generator(name="validation",
+                                                                           batch_size=self.batch_size,
+                                                                           size=0.1)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.validation_samples)
         batch_cnt = 0
@@ -182,10 +183,10 @@ class Train:
 
     def test(self, session, writer):
         print("start testing")
-        test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
-                                                      batch_size=self.batch_size)
-        # test_sampler = self.datamodel.pre_build_pair_batch_generator(name="testing",
-        #                                                              batch_size=self.batch_size)
+        # test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
+        #                                               batch_size=self.batch_size)
+        test_sampler = self.datamodel.pre_build_pair_batch_generator(name="testing",
+                                                                     batch_size=self.batch_size)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.test_samples)
         batch_cnt = 0
@@ -213,3 +214,47 @@ class Train:
         acc_sum /= batch_cnt
         print("testing done")
         print("mean accuracy on test set", acc_sum)
+
+    def get_latest(self, path):
+        folders = []
+        for file in os.listdir(path):
+            fqdn = os.path.join(path, file)
+            if os.path.isdir(fqdn):
+                folders.append([file, fqdn])
+        best_time = None
+        best_checkpoint = None
+        for name, fqdn in folders:
+            foldertime = datetime.strptime(name, "%Y-%m-%d %H:%M:%S.%f")
+            if best_time is None or foldertime > best_time:
+                best_time = foldertime
+                best_checkpoint = fqdn
+        return best_checkpoint
+
+    def generate(self, input):
+        # TODO: remove this
+        x,y,mask = input
+        indices = [index for index in x[0] if index != 0]
+        words = [self.datamodel.i2w[index] for index in indices if index != 0]
+        print(" ".join(words))
+        saver = tf.train.Saver()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        path = self.get_latest(self.checkpoint_path)
+        print("restore checkpoint {}".format(path))
+        with tf.Session(config=config) as session:
+            saver.restore(session, path)
+            feed_dict = {
+                self.tf_model.x: x,
+                self.tf_model.y: y,
+                self.tf_model.y_masks: mask,
+                self.tf_model.is_training: False
+            }
+            result = session.run([self.tf_model.pred_argmax, self.tf_model.is_training], feed_dict=feed_dict)[0]
+            # print(result, type(result))
+            result = result[0]
+            # print(result, type(result))
+            result_words = [self.datamodel.i2w[index] for index in result if index != 0]
+            expected_words = [self.datamodel.i2w[index] for index in y[0] if index != 0]
+            # print("result: " + " ".join(result_words))
+            # print("expected: " + " ".join(expected_words))
+            return result_words
