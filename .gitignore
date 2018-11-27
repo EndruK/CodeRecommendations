@@ -110,3 +110,5 @@ venv.bak/
 dmypy.json
 
 .idea
+DumpDump
+logging
