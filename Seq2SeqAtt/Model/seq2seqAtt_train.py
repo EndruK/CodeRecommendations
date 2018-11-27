@@ -74,8 +74,10 @@ class Train:
             print("start training")
             for epoch in range(self.epochs):
                 train_acc_sum = 0
-                training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
-                                                                  batch_size=self.batch_size)
+                # training_sampler = self.datamodel.batch_generator(dataset=self.datamodel.training_files,
+                #                                                   batch_size=self.batch_size)
+                training_sampler = self.datamodel.pre_build_pair_batch_generator(name="training",
+                                                                                 batch_size=self.batch_size)
                 # batch_sampler = self.sampler.get_batch(
                 #     self.datamodel.train_samples)
                 batch_cnt = 0
@@ -116,22 +118,26 @@ class Train:
                         valid_acc = self.validate(session, global_step, writer)
                         if valid_acc > highest_acc:
                             highest_acc = valid_acc
+                            now = datetime.now()
                             path = os.path.join(self.checkpoint_path, str(now))
                             if not os.path.isdir(path):
                                 os.makedirs(path)
-                            with open(os.path.join(path, "note"), "w+") as f:
-                                writestring = "Validation Accuracy of checkpoint:\n"
-                                writestring += str(highest_acc)
+                            with open(os.path.join(path, "note"), "a") as f:
+                                writestring = "Validation Accuracy of checkpoint at "+str(now)+":\n"
+                                writestring += str(highest_acc) + "\n"
                                 f.write(writestring)
-                            #savepath = saver.save(session, path)
-                            saver.save(session, os.path.join(self.checkpoint_path, "best.checkpoint"))
+                            savepath = saver.save(session, path)
+                            #saver.save(session, os.path.join(self.checkpoint_path, "best.checkpoint"))
                     global_step += 1
             self.test(session, writer)
 
     def validate(self, session, global_step, writer):
         print("start validation")
-        validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
-                                                            batch_size=self.batch_size, size=0.1)
+        # validation_sampler = self.datamodel.batch_generator(dataset=self.datamodel.validation_files,
+        #                                                     batch_size=self.batch_size, size=0.1)
+        validation_sampler = self.datamodel.pre_build_pair_batch_generator(name="validation",
+                                                                           batch_size=self.batch_size,
+                                                                           size=0.1)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.validation_samples)
         batch_cnt = 0
@@ -179,8 +185,10 @@ class Train:
 
     def test(self, session, writer):
         print("start testing")
-        test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
-                                                      batch_size=self.batch_size)
+        # test_sampler = self.datamodel.batch_generator(dataset=self.datamodel.testing_files,
+        #                                               batch_size=self.batch_size)
+        test_sampler = self.datamodel.pre_build_pair_batch_generator(name="testing",
+                                                                     batch_size=self.batch_size)
         # batch_sampler = self.sampler.get_batch(
         #     self.datamodel.test_samples)
         batch_cnt = 0
