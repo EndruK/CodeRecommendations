@@ -57,7 +57,7 @@ class PytorchEncoder(nn.Module):
         """
         initialize the hidden state with a zero tensor (no knowledge present)
         :param batch_size:
-        :return:
+        :return: zero hidden state
         """
         # [2, 2, batch, hidden]
         # 1.dim=2 because of bi-directional
@@ -95,12 +95,13 @@ class PytorchDecoder(nn.Module):
         )
         self.use_cuda = use_cuda
 
-    def forward(self, x, hidden):
+    def forward(self, x, hidden, encoder_output=None):
         """
         forward pass - process one token at a time
         :param x: either the previous ground truth on teacher force or the last prediction
         :param hidden: on first iteration: last encoder state, otherwise last decoder state
-        :return:
+        :param encoder_output: relevant parameter for attention
+        :return: output of RNN and last hidden state
         """
         # NOTE: processing one time step at a time
 
@@ -329,7 +330,7 @@ class TrainingHelper:
             # also we don't want teacher force
             _, batch_loss, batch_accuracy = self.model_iteration(x, y, teacher_force=False)
             # return mean loss for all words in prediction
-            return batch_loss, batch_accuracy
+        return batch_loss, batch_accuracy
 
     def store_model(self, path, name, store_model=False):
         """

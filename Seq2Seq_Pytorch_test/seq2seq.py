@@ -1,5 +1,6 @@
 from Seq2Seq_Pytorch_test.Preprocessing.Dataset.JSON.dataset import JsonDataset
-from Seq2Seq_Pytorch_test.Model.seq2seq_train_pytorch import run_training
+from Seq2Seq_Pytorch_test.Model.seq2seq_train_pytorch import run_training as training_vanilla
+from Seq2Seq_Pytorch_test.Model.seq2seq_attention_train_pytorch import run_training as training_attention
 import argparse, configparser, os, math, multiprocessing, logging
 
 
@@ -126,7 +127,25 @@ def run():
     training_checkpoint_path = os.path.join(
         args.experiment_path, output_config.get("Dumping", "training_checkpoint_path"))
 
-    run_training(
+    # training_vanilla(
+    #     encoder_time_size=experiment_config.getint("Model", "input_size"),
+    #     decoder_time_size=experiment_config.getint("Model", "output_size"),
+    #     hidden_size=experiment_config.getint("Model", "hidden_size"),
+    #     vocab_len=len(dataset.vocab),
+    #     embedding_dim=experiment_config.getint("Embeddings", "hidden_size"),
+    #     batch_size=experiment_config.getint("Model", "batch_size"),
+    #     learning_rate=experiment_config.getfloat("Model", "learning_rate"),
+    #     sos=dataset.w2i[dataset.SOS],
+    #     eos=dataset.w2i[dataset.EOS],
+    #     epochs=experiment_config.getint("Model", "epochs"),
+    #     validation_interval=experiment_config.getint("Metric", "validation_interval"),
+    #     log_interval=experiment_config.getint("Metric", "print_interval"),
+    #     data=dataset,
+    #     use_cuda=True,
+    #     tensorboard_log_dir=training_log_path,
+    #     model_store_path=training_checkpoint_path
+    # )
+    training_attention(
         encoder_time_size=experiment_config.getint("Model", "input_size"),
         decoder_time_size=experiment_config.getint("Model", "output_size"),
         hidden_size=experiment_config.getint("Model", "hidden_size"),
