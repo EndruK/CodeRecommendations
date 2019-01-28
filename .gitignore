@@ -112,3 +112,7 @@ dmypy.json
 .idea
 DumpDump
 logging
+
+
+# vs-code
+.vscode/*
