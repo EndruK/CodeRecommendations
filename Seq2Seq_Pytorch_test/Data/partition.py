@@ -1,34 +1,32 @@
 import torch.utils.data as data
 
+
 class Partition(data.Dataset):
-    def __init__(self, name, dataframe, index_list):
+    def __init__(self, x, y):
         """
-        constructor - set dataframe and index list
-        :param name: name of parition
-        :param dataframe: pandas dataframe of all tuples in the coprus
-        :param index_list: index list for this partition
+        Initializes the dataset with given symmetric arrays
+        :param x: x-array created by sklearn train_test split
+        :param y: y-array created by sklearn train_test split
         """
         super(Partition, self).__init__()
-
-        self.name = name
-        self.dataframe = dataframe
-        self.index_list = index_list
-
-        self.partition_size = len(index_list)
-
+        assert(len(x) == len(y))
+        self.length = len(x)
+        self.x = x
+        self.y = y
 
     def __len__(self):
         """
         get the length of the partition
         :return: int length
         """
-        return self.partition_size
+        return self.length
 
     def __getitem__(self, item):
         """
-        get an item out of the dataframe
-        :param item: index in partition refers to some shuffled index in the dataframe
+        get an item out of the partition
+        :param item: index to the desired tuple
         :return: tuple of x and y
         """
-        index = self.index_list[item]
-        return self.dataframe[index]
+        x = self.x[item]
+        y = self.y[item]
+        return x, y
