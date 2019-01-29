@@ -1,492 +1,265 @@
-import os, random, logging as log, json, multiprocessing, pickle as pkl, csv, pandas as pd, math
-# TODO: remove this import
-from tokenizers.nltk_tokenizer import NLTKTokenizer as Tokenizer
+import pandas as pd
+import logging as log
+from sklearn.model_selection import train_test_split
+import time
+import datetime
 from Seq2Seq_Pytorch_test.Data.partition import Partition
+from Seq2Seq_Pytorch_test.Data.tokenizers.json_tokenizer import JsonTokenizer
+from typing import Dict
+import multiprocessing
+import math
+import os
+import pickle as pkl
 
 
 class Dataset:
 
-    TARGET_AST_NODE = "statements"
-    INVOCATION_STR = "{<INV>:<EMPTY>}"
-    STATEMENT_LIMIT = 100
+    SPECIAL_TOKENS = ["UNK", "PAD", "EMPTY", "INV", "SOS", "EOS"]
 
-
-    def __init__(self, Tokenizer):
+    def __init__(self, dataset_path, tokenizer):
         """
-
-        :param Tokenizer: tokenizer class reference
+        Init the dataset - nothing very special.
+        :param dataset_path: path to the csv file holding all tuples of preprocessor
+        :param tokenizer: class reference to a tokenizer
         """
-        self.pandas_dataset = None
-        self.partitions = {}
-        self.tokenizer = Tokenizer()
+        self.dataset_path = dataset_path
+        self.partitions = {"training": None, "validation": None, "testing": None}  # type: Dict[str, Partition]
+        self.tokenizer = tokenizer
+        self.vocab = []
+        self.index_2_word = {}
+        self.word_2_index = {}
 
-
-
-
-    def preprocess(self, corpus_path, cut_result_path, preprocess_result_path, num_of_processes=5):
+    def __load_csv(self):
         """
-        Main preprocessing procedure - the function will take some time!
-        TODO: reorder this
-        - extract all files in corpus
-        - split the dataset into partitions
-        - create vocabulary
-        - build index mappings
-        - create the AST cut
-        :param corpus_path: string with absolute path to the corpus root folder
-        :return: TODO
+        Load the csv file located at self.dataset_path which was given in the init function.
+        :return: pandas dataframe holding all tuples of the preprocessing
         """
-        log.debug("start preprocessing")
-        # extract file paths
-        file_paths = self.get_corpus_file_list(corpus_path, shuffle=True)
+        log.debug("start loading csv file into RAM")
+        _dataset = pd.read_csv(self.dataset_path, delimiter=",", lineterminator="\n", quotechar="'")
+        log.debug("done loading csv file")
+        log.info("tuples in dataset: %d" % len(_dataset))
+        return _dataset
 
-        # create AST cuts
-        Dataset.extract_statements_parallel(file_list=file_paths,
-                                            output_path=cut_result_path,
-                                            num_of_processes=num_of_processes)
-        Dataset.build_csv_file(path_to_cut=cut_result_path, output_path=preprocess_result_path)
-
-    def load_csv(self, csv_path):
+    def split_dataset(self):
         """
-        load the dataset csv via pandas dataframe
-        :param csv_path:
-        :return:
+        Split the dataset into training, validation and testing - filling the member-attribute partitions.
         """
-        log.info("start loading csv file")
-        self.pandas_dataset = pd.read_csv(csv_path)
-        log.info("done loading csv file")
+        log.debug("splitting dataset")
 
+        # load csv file to RAM
+        _dataset = self.__load_csv()
+        # split dataframe into sources and targets (x and y are symmetric)
+        _x = _dataset.iloc[:, 0].values
+        _y = _dataset.iloc[:, 1].values
 
-    def partition_dataset(self, preprocess_result_path, scheme=[.7, .2, .1]):
+        # first split to get training parts
+        _train_x, _validation_and_test_x, _train_y, _validation_and_test_y = train_test_split(_x, _y,
+                                                                                              test_size=.2,
+                                                                                              random_state=3,
+                                                                                              shuffle=True)
+        # second split to get validation and testing parts
+        _validation_x, _test_x, _validation_y, _test_y = train_test_split(_validation_and_test_x,
+                                                                          _validation_and_test_y,
+                                                                          test_size=.4,
+                                                                          random_state=42,
+                                                                          shuffle=True)
+        # create pytorch datasets as partitions
+        self.partitions["training"] = Partition(_train_x, _train_y)
+        self.partitions["validation"] = Partition(_validation_x, _validation_y)
+        self.partitions["testing"] = Partition(_test_x, _test_y)
+        log.info("sizes of the dataset:")
+        log.info("training: %d" % len(self.partitions["training"]))
+        log.info("validation: %d" % len(self.partitions["validation"]))
+        log.info("testing: %d" % len(self.partitions["testing"]))
+
+    def build_vocab(self, top_k, num_processes=5, include_y=False):
         """
-        separate the dataset into training, validation, testing
-        :param preprocess_result_path:
-        :return:
+        Create the vocabulary on the training dataset.x strings and the tokenizer of this dataset
+        also, fills the member-attributes of vocab, index_2_word and word_2_index.
+        Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
+        vocab is based on a temporary partition scheme!
+        :param top_k: number of top-k tokens in the resulting vocabulary
+        :param num_processes: how many processes should be used to create the vocabulary (default=5)
+        :param include_y: flag whether to include tokens of target y to vocab or not (default=False)
         """
-        log.info("start building partitions")
-        complete_length = len(self.pandas_dataset)
+        # assume there is something in the training partition
+        assert self.partitions["training"] is not None
+        _vocab = {}
+        log.debug("start vocab creation")
+        processes = []
+        # spawn a process pool
+        pool = multiprocessing.Pool(processes=num_processes)
+        _start = time.time()
+        # how many sources should a process cover?
+        items_per_process = math.floor(len(self.partitions["training"]) / num_processes)
+        # create a distribution for all processes
+        distribution = [items_per_process] * num_processes
+        # add the remaining indices to the distribution
+        remainder = len(self.partitions["training"]) % num_processes
+        for i in range(remainder):
+            distribution[i] += 1
 
-        size_training = math.floor(scheme[0] * complete_length)
-        size_validation = math.floor(scheme[1] * complete_length)
+        # first start index is 0
+        start_index = 0
+        end_index = 0
+        for process_id in range(num_processes):
+            # add current distribution value to end index to get the range inside the partition
+            end_index += distribution[process_id]
+            # spawn a new process and add it to the process list
+            process = pool.apply_async(Dataset.build_vocab_parallel,
+                                       args=(process_id,
+                                             self.partitions["training"],
+                                             self.tokenizer,
+                                             start_index,
+                                             end_index,
+                                             include_y))
+            processes.append(process)
+            # start index is always last end index
+            start_index = end_index
+        for process in processes:
+            # wait for all processes to terminate
+            result = process.get()
+            # merge vocabs
+            for key, value in result.items():
+                if key not in _vocab:
+                    _vocab[key] = value
+                else:
+                    _vocab[key] += value
+        _end = time.time()
+        log.debug("complete vocab creation time: %s" % datetime.timedelta(seconds=_end-_start))
+        # sort vocab based on token frequency
+        _sorted_vocab = sorted([[key, value] for key, value in _vocab.items()],
+                               key=lambda j: j[1],
+                               reverse=True)
+        log.info("size of vocab before removing of non top-k elements: %d" % len(_vocab))
+        log.debug("top 10 elements in vocab: %s" % str(_sorted_vocab[:10]))
+        log.debug("adding special tokens: %s" % str(Dataset.SPECIAL_TOKENS))
+        # keep top-k tokens as vocab
+        _sorted_vocab = _sorted_vocab[:top_k]
+        vocab_list = [token for token, _ in _sorted_vocab]
+        # add special tokens to the left of the vocab
+        vocab_list = Dataset.SPECIAL_TOKENS + vocab_list
 
-        index_list = [i for i in range(complete_length)]
-        random.shuffle(index_list)
+        # create index mappings
+        self.vocab = vocab_list
+        self.index_2_word = {}
+        self.word_2_index = {}
+        for i in range(len(self.vocab)):
+            word = self.vocab[i]
+            self.index_2_word[i] = word
+            self.word_2_index[word] = i
 
-        training_indices = index_list[:size_training]
-        validation_indices = index_list[size_training:size_training+size_validation]
-        testing_indices = index_list[size_training+size_validation:]
-
-        training_partition = Partition("training", self.pandas_dataset, training_indices)
-        validation_partition = Partition("validation", self.pandas_dataset, validation_indices)
-        testing_partition = Partition("testing", self.pandas_dataset, testing_indices)
-
-        self.partitions = {"training" : training_partition,
-                           "validation" : validation_partition,
-                           "testing" : testing_partition}
-        log.info("done building partitions")
-
-
-    # @staticmethod
-    # def build_csv_file(path_to_cut, output_path):
-    #     """
-    #     put everything into one large csv file
-    #     :param path_to_cut: path to the x,y tuple files
-    #     :param output_path: path to where to store the csv file
-    #     :return:
-    #     """
-    #
-    #     file_list = os.listdir(path_to_cut)
-    #     file_list = [os.path.join(path_to_cut, f) for f in file_list if f.endswith(".pkl")]
-    #
-    #     csv_file_path = os.path.join(output_path, "dataset.csv")
-    #     if not os.path.isdir(output_path):
-    #         os.makedirs(output_path)
-    #
-    #     csv_file = open(csv_file_path, "w")
-    #     writer = csv.writer(csv_file, lineterminator="\n")
-    #
-    #     writer.writerow(["x", "y"])
-    #
-    #     index = 0
-    #     file_cnt = 1
-    #     for file in file_list:
-    #         with open(file, "rb") as f:
-    #             data = pkl.load(f)
-    #         for x,y in data:
-    #             if index % 200 == 0:
-    #                 print("file %d of %d - processing tuple %d" % (file_cnt, len(file_list), index))
-    #             t = [x, y]
-    #             writer.writerow(t)
-    #             index += 1
-    #         file_cnt += 1
-    #     csv_file.close()
-
-
-    # # TODO: obolete, remove this
-    # @staticmethod
-    # def split_dataset(complete_cut_dataset_path, output_path, scheme=[.7, .2, .1]):
-    #     """
-    #     split the dataset into training, validation, testing by using the given scheme
-    #     :param scheme: splitting scheme to divide the dataset (default=[.7, .2, .1])
-    #     """
-    #
-    #     if not os.path.isdir(output_path):
-    #         os.makedirs(output_path)
-    #
-    #     # load the summarization file
-    #     with open(os.path.join(complete_cut_dataset_path, "corpus.details") , "r") as f:
-    #         text = f.read()
-    #     sum_of_tuples = int(text.split(":")[1])
-    #
-    #     training_sum = int(sum_of_tuples * scheme[0])
-    #     validation_sum = int(sum_of_tuples * scheme[1])
-    #     testing_sum = int(sum_of_tuples * scheme[2])
-    #
-    #     # now do the split
-    #     file_list = os.listdir(complete_cut_dataset_path)
-    #     file_list = [os.path.join(complete_cut_dataset_path, f) for f in file_list if f.endswith(".pkl")]
-    #
-    #     counter = 0
-    #
-    #     training_file = open(os.path.join(output_path, "training.partition.pkl"), "wb")
-    #     validation_file = open(os.path.join(output_path, "validation.partition.pkl"), "wb")
-    #     testing_file = open(os.path.join(output_path, "testing.partition.pkl"), "wb")
-    #
-    #     for file in file_list:
-    #         with open(file, "rb") as f:
-    #             content = pkl.load(f)
-    #         random.shuffle(content)
-    #         for tuple in content:
-    #             if counter % 200 == 0 and counter > 0:
-    #                 print("%d / %d" % (counter, sum_of_tuples))
-    #             if counter < training_sum:
-    #                 pkl.dump(tuple, training_file)
-    #             elif counter >= training_sum and counter < training_sum + validation_sum:
-    #                 pkl.dump(tuple, validation_file)
-    #             else:
-    #                 pkl.dump(tuple, testing_file)
-    #             counter += 1
-    #     training_file.close()
-    #     validation_file.close()
-    #     testing_file.close()
-    #     with open(os.path.join(output_path, "details.txt"), "w") as f:
-    #         f.write("training:%d\nvalidation:%d\ntesting:%d\n" % (training_sum, validation_sum, testing_sum))
-
-
-
-    # @staticmethod
-    # def extract_statements_parallel(file_list, output_path, num_of_processes=5):
-    #     """
-    #     create processes for statement extraction
-    #     takes very long time on single HDD
-    #     :param file_list: array containing the absolute paths to all files in the corpus
-    #     :param output_path: path to store the result of the statement cuts
-    #     :param num_of_processes: number of parallel processes
-    #     """
-    #     # how many files should one process handle
-    #     file_load = len(file_list) // num_of_processes
-    #     # how many files are left
-    #     file_load_rest = len(file_list) % num_of_processes
-    #     file_split = [file_load] * num_of_processes
-    #     for i in range(file_load_rest):
-    #         file_split[i] += 1
-    #     assert sum(file_split) == len(file_list)
-    #
-    #     # create a process pool
-    #     pool = multiprocessing.Pool(processes=num_of_processes)
-    #     # array to store process hooks
-    #     processes = []
-    #     log.debug("start statement extraction processes")
-    #     for process_id in range(num_of_processes):
-    #         start = sum(file_split[:process_id])
-    #         end   = start + file_split[process_id]
-    #         # get the sublist of files
-    #         process_file_list = file_list[start:end]
-    #         # spawn a process
-    #         process = pool.apply_async(Dataset.extract_statement_process,
-    #                                    args=(process_file_list, process_id, output_path))
-    #         processes.append(process)
-    #     process_tuple_count = []
-    #     # wait for all processes to finish
-    #     for process in processes:
-    #         tuple_count = process.get()
-    #         process_tuple_count.append(tuple_count)
-    #     log.info("final amount of tuples of this run = %d" % sum(process_tuple_count))
-    #     with open(os.path.join(output_path, "corpus.details"), "w") as f:
-    #         f.write("amount_of_tuples:%d" % sum(process_tuple_count))
-    #     log.debug("statement extraction processes finished")
-
-
-    # @staticmethod
-    # def extract_statement_process(file_list, process_id, output_path, num_per_file=20000):
-    #     """
-    #     process to work with a sublist of files for statement extraction
-    #     :param file_list: sublist of AST files
-    #     :param process_id: the id of the process running this method
-    #     :param output_path: path where the result should be exported to
-    #     :param num_per_file: max number of tuples per dump file
-    #     :return: tuple_count of all extracted tuples of this process
-    #     """
-    #     log.debug("started process %d" % process_id)
-    #     source_file_count = 1
-    #     tuple_count = 0
-    #
-    #     tuple_array = []
-    #
-    #     start_range = 1
-    #
-    #     for path in file_list:
-    #         if source_file_count % 200 == 0:
-    #             log.debug("process %d running file %d/%d" % (process_id, source_file_count, len(file_list)))
-    #         # get statement tuples
-    #         with open(path, "r") as f:
-    #             json_object = json.load(f)
-    #         tuples = Dataset.extract_statements_file(json_object, limit=Dataset.STATEMENT_LIMIT)
-    #         for i in range(len(tuples)):
-    #             t = tuples[i]
-    #             tuple_array.append(t)
-    #             tuple_count += 1
-    #
-    #
-    #             if tuple_count % num_per_file == 0:
-    #                 end_range = tuple_count
-    #                 name = "%d_%s_%s.pkl" % (process_id, start_range, end_range)
-    #                 log.debug("creating new statement cut file %s at %s for process %d" % (name,
-    #                                                                                        output_path,
-    #                                                                                        process_id))
-    #                 file_path = os.path.join(output_path, name)
-    #                 with open(file_path, "wb") as f:
-    #                     pkl.dump(tuple_array, f)
-    #                 tuple_array = []
-    #                 start_range = tuple_count+1
-    #
-    #         source_file_count += 1
-    #     if len(tuple_array) > 0:
-    #         end_range = tuple_count
-    #         name = "%d_%s_%s.pkl" % (process_id, start_range, end_range)
-    #         log.debug("creating new statement cut file %s at %s for process %d" % (name,
-    #                                                                                output_path,
-    #                                                                                process_id))
-    #         file_path = os.path.join(output_path, name)
-    #         with open(file_path, "wb") as f:
-    #             pkl.dump(tuple_array, f)
-    #     return tuple_count
-
-    @staticmethod
-    def extract_statements_file(method_json_object, limit=100):
+    def dump_vocab(self, p, title):
         """
-        Extract statements of a given file.
-        Read, tokenize and then slice some statements out of the text of a given file
-        :param source_path: path to the file to extract statement
-        :param limit: limit the amount of statements per file (default=100)
-        :return: array holding x and y tuples
+        Dump the vocab, i2w and w2i variables to disk.
+        :param p: path on the disk to store variables to
+        :param title: name of the files
         """
-        # get all statements of the text
-        statement_lists = Dataset.process_json_node(method_json_object, target=Dataset.TARGET_AST_NODE)
-        result_statements = []
-        for statement_list in statement_lists:
-            for statement in statement_list:
-                result_statements.append(statement)
-        # shuffle our statement list
-        random.shuffle(result_statements)
+        # assume we have a vocab and index mappings
+        assert len(self.vocab) is not 0
+        assert len(self.word_2_index) is not 0
+        assert len(self.index_2_word) is not 0
+        v_path = os.path.join(p, title + ".vocab")
+        i2w_path = os.path.join(p, title + ".i2w")
+        w2i_path = os.path.join(p, title + ".w2i")
+        # check if there are already files and delete them if yes
+        Dataset.check_and_delete(v_path)
+        Dataset.check_and_delete(i2w_path)
+        Dataset.check_and_delete(w2i_path)
+        # dump variables to files
+        with open(v_path, "wb") as f:
+            pkl.dump(self.vocab, f)
+        with open(i2w_path, "wb") as f:
+            pkl.dump(self.index_2_word, f)
+        with open(w2i_path, "wb") as f:
+            pkl.dump(self.word_2_index, f)
+        log.debug("done dumping vocab and indexing dicts to %s under the title %s" % (path, title))
+
+    def load_vocab(self, p, title):
+        """
+        Load the vocab, i2w and w2i at the given path from disk.
+        :param p: path on the disk where variables are stored
+        :param title: name of the dumps
+        """
+        v_path = os.path.join(p, title + ".vocab")
+        i2w_path = os.path.join(p, title + ".i2w")
+        w2i_path = os.path.join(p, title + ".w2i")
+        # assume there are files
+        assert os.path.isfile(v_path)
+        assert os.path.isfile(i2w_path)
+        assert os.path.isfile(w2i_path)
+        with open(v_path, "rb") as f:
+            self.vocab = pkl.load(f)
+        with open(i2w_path, "rb") as f:
+            self.index_2_word = pkl.load(f)
+        with open(w2i_path, "rb") as f:
+            self.word_2_index = pkl.load(f)
+        log.debug("loaded pickled vocab, i2w and w2i files at %s with title %s" % (p, title))
+
+    def text_to_index_array(self, text):
+        """
+        Tokenize a given text based on current vocabulary and current tokenizer and transform it into
+        word index representation.
+        Also, adds start of sequence to left and end of sequence to right.
+        :param text: the text
+        :return: array, tokenized text in index format
+        """
+        tokenizer = self.tokenizer()
+        tokens = tokenizer.tokenize(text)
         result = []
-        count = 0
-
-        json_string = str(method_json_object)
-
-        # build x and y pairs
-        for statement in result_statements:
-            if count >= limit:
-                break
-            found = json_string.find(str(statement))
-            if found == -1:
-                continue
-
-            x = json_string
-            y = str(statement)
-            x = x.replace(y, Dataset.INVOCATION_STR)
-
-            result.append((x, y))
-            count += 1
-
+        for token in tokens:
+            if token in self.vocab:
+                result.append(self.word_2_index[token])
+            else:
+                result.append(self.word_2_index["UNK"])
+        result = [self.index_2_word["SOS"]] + result + [self.index_2_word["EOS"]]
         return result
 
-    # @staticmethod
-    # def extract_statements_file_old(source_path, limit=100):
-    #     """
-    #     TODO: obsolete - remove this
-    #     Extract statements of a given file.
-    #     Read, tokenize and then slice some statements out of the text of a given file
-    #     :param source_path: path to the file to extract statement
-    #     :param limit: limit the amount of statements per file (default=100)
-    #     :return: array holding x and y tuples
-    #     """
-    #     # first read in the file
-    #     text = Dataset.read_file(source_path)
-    #     # get all statements of the text
-    #     statements = Dataset.slice_method_statements(text)
-    #     if len(statements) > limit:
-    #         end = limit
-    #     else:
-    #         end = len(statements)
-    #     # shuffle our statement list
-    #     random.shuffle(statements)
-    #     result = []
-    #     # build x and y pairs
-    #     for statement in statements[:end]:
-    #         json_str = str(json.loads(text))
-    #         stmt_str = str(statement)
-    #         # replace the part in the original source with the invocation string
-    #         # TODO: at this point something goes wrong and the strings are not replaced properly
-    #         x = json_str.replace(stmt_str, Dataset.INVOCATION_STR)
-    #         y = stmt_str
-    #         # x and y as tuple
-    #         result.append((x, y))
-    #     return result
-
-    # @staticmethod
-    # def slice_method_statements(text):
-    #     """
-    #     Build json object and get all expression statements by using recursive function process_node.
-    #     :param text: text of the given AST file
-    #     :return: list containing all statments of that file
-    #     """
-    #     json_data = json.loads(text)
-    #     statements = Dataset.process_json_node(json_data, target=Dataset.TARGET_AST_NODE)
-    #     return statements
+    @staticmethod
+    def check_and_delete(p):
+        """
+        Check if there is a file at the given path and remove it
+        :param p: path to a file
+        """
+        if os.path.isfile(p):
+            log.debug("found file at target - removing %s" % p)
+            os.remove(p)
 
     @staticmethod
-    def process_json_node(node, target, target_list=[]):
+    def build_vocab_parallel(process_id, partition, tokenizer, start, end, include_y=False):
         """
-        Recursive function to extract a certain target node type of a json tree
-        :param node: root node of the json tree
-        :param target: the target json node which should be extracted
-        :param target_list: container for the results
-        :return target_list: at the end of recursion this should hold all subtrees with target as root
-        :raises NotImplementedError: only if no case was covered by the recursive function
+        Method to be called on sub-processes to extract a vocabulary on the subset of the given partition.
+        :param process_id: ID of the process
+        :param partition: reference to the dataset partition
+        :param tokenizer: use the given tokenizer to extract tokens of text
+        :param start: start index in the partition
+        :param end: end index in the partition
+        :param include_y: flag whether to include tokens of target y to vocab or not (default=False)
+        :return: vocab of the subset of the partition
         """
-        # we can have a list as the current root element - iterate over all list elements
-        if isinstance(node, list):
-            for item in node:
-                Dataset.process_json_node(item, target, target_list)
-        # if we have a string - ignore it
-        elif isinstance(node, str):
-            pass
-        # if we have a dict, again iterate ofer items
-        elif isinstance(node, dict):
-            for key, value in node.items():
-                if key == target:
-                    # print("### " + str(key) + "  " + str(value))
-                    target_list.append(value)
-                target_list = Dataset.process_json_node(value, target, target_list)
-        else:
-            error_msg = "tree case not implemented: %s" % str(type(node))
-            raise NotImplementedError(error_msg)
-        return target_list
-
-    # @staticmethod
-    # def process_json_node(node, target, target_list=[]):
-    #     """
-    #     Recursive function to extract a certain target node type of a json tree
-    #     :param node: root node of the json tree
-    #     :param target: the target json node which should be extracted
-    #     :param target_list: container for the results
-    #     :return target_list: at the end of recursion this should hold all subtrees with target as root
-    #     :raises NotImplementedError: only if no case was covered by the recursive function
-    #     """
-    #     # we can have a list as the current root element - iterate over all list elements
-    #     if isinstance(node, list):
-    #         for item in node:
-    #             Dataset.process_json_node(item, target, target_list)
-    #     # if we have a string - ignore it
-    #     elif isinstance(node, str):
-    #         pass
-    #     # if we have a dict, again iterate ofer items
-    #     elif isinstance(node, dict):
-    #         for key, value in node.items():
-    #             if key == target:
-    #                 target_list.append(node)
-    #             target_list = Dataset.process_json_node(value, target, target_list)
-    #     else:
-    #         error_msg = "tree case not implemented: %s" % str(type(node))
-    #         log.error(error_msg)
-    #         raise NotImplementedError(error_msg)
-    #     return target_list
+        _vocab = {}
+        t = tokenizer()
+        for i in range(start, end):
+            relative_index = i - start
+            if relative_index % 200 == 0:
+                log.debug("process %d processing %d of %d" % (process_id, relative_index, end-start))
+            x, y = partition[i]
+            tokens = t.tokenize(x)
+            for token in tokens:
+                if token not in _vocab:
+                    _vocab[token] = 1
+                else:
+                    _vocab[token] += 1
+            if include_y:
+                tokens = t.tokenize(y)
+                for token in tokens:
+                    if token not in _vocab:
+                        _vocab[token] = 1
+                    else:
+                        _vocab[token] += 1
+        return _vocab
 
 
-
-
-
-    def get_corpus_file_list(self, corpus_path, shuffle=False):
-        """
-        Extract all necessary file of the dataset.
-        Each entry is an absolute path to one .ast file
-        :param corpus_path: string with absolute path to corpus root folder
-        :param shuffle: set true to shuffle paths in array
-        :return: array containing all paths
-        """
-        result = []
-        for root, dirs, files in os.walk(corpus_path):
-            for file in files:
-                if file.endswith(".ast"):
-                    path = os.path.join(root, file)
-                    result.append(path)
-        log.debug("done extracting corpus paths")
-        log.info("number of files in corpus: %d" % len(result))
-        # only if we want to shuffle our dataset
-        if shuffle:
-            random.shuffle(result)
-        return result
-
-    # def create_vocab_parallel(self, file_paths, num_of_threads):
-    #     """
-    #     Create the vocabulary based on the class tokenizer and the given files.
-    #     Process the files in parallel to speed up the generation.
-    #     :param file_paths: array containing the absolute paths to all files in the corpus
-    #     :param num_of_threads: number of threads to process the corpus
-    #     :return:
-    #     """
-
-    # def create_vocab(self, file_paths):
-    #     """
-    #     Create the vocabulary based on the class tokenizer and the given files.
-    #     Function may take some time.
-    #     :param file_paths: array containing the absolute paths to all files in the corpus
-    #     :return: dictionary containing all words with their occurences in the corpus {"word": occurence}
-    #     """
-    #     vocab = {}
-    #
-    #     log.debug("start creation of vocabulary")
-    #
-    #     for path in file_paths:
-    #         text = Dataset.read_file(path)
-    #         tokens = self.tokenizer.tokenize(text)
-    #         for token in tokens:
-    #             if token not in vocab:
-    #                 vocab[token] = 1
-    #             else:
-    #                 vocab[token] += 1
-    #     log.info("done extracting all words in corpus, num of words: %d" % len(vocab))
-    #     print()
-
-
-    @staticmethod
-    def read_file(path):
-        """
-        simply read a text file and return its content
-        :param path: absolute path to the file
-        :return: string containing the complete content of the given file
-        :raises FileNotFoundException: only if the path does not exists or the file cannot be read
-        """
-        if not os.path.isfile(path):
-            log.error("%s does not exist!")
-            raise FileNotFoundError
-
-        with open(path, "r") as f:
-            text = f.read()
-        return text
-
-
-# TODO: test code
 if __name__ == "__main__":
     log.basicConfig(
         level=log.DEBUG,
@@ -495,20 +268,9 @@ if __name__ == "__main__":
             log.StreamHandler()
         ]
     )
-
-    ds = Dataset(Tokenizer)
-    corpus_path =     "/mnt/media/Corpora/AndreKarge_2018-09-12_JavaAST_JSON_without_features/Dataset"
-    cut_result_path = "/mnt/media/Corpora/AndreKarge_2018-09-12_JavaAST_JSON_without_features/2019_01_09_split_ast_methods_statement_v3"
-    #preprocess_result_path = "/mnt/media/Corpora/AndreKarge_2018-09-12_JavaAST_JSON_without_features/csv_test"
-    preprocess_result_path = "/home/andre/Documents"
-    num_of_processes = 7
-    # ds.preprocess(corpus_path=corpus_path,
-    #               cut_result_path=cut_result_path,
-    #               preprocess_result_path=preprocess_result_path,
-    #               num_of_processes=num_of_processes)
-    #
-    ds.load_csv(csv_path=preprocess_result_path+"/test.cvs")
-    ds.partition_dataset(preprocess_result_path=preprocess_result_path)
-    test = ds.partitions["training"][0]
-
-    pass
+    path = "/home/andre/Documents/tuples_subset.csv"
+    vocab_path = "/home/andre/Documents"
+    ds = Dataset(path, JsonTokenizer)
+    ds.split_dataset()
+    ds.build_vocab(top_k=10000, num_processes=6)
+    ds.dump_vocab(vocab_path, "test")
