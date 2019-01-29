@@ -5,6 +5,12 @@ import argparse
 if __name__ == "__main__":
     """
     NOTE: this function currently only works with the pytorch version (Seq2Seq_Pytorch_test)
+    Argument setup: "/path/to/serialized/AST_Methods" "/path/to/resulting/CSV/file" "level" "/path/to/log/file"
+    Example: run_preprocess.py
+             "/mnt/media/Corpora/AndreKarge_2018-09-12_JavaAST_JSON_without_features/Dataset"
+             "/home/andre/Documents"
+             "debug"
+             "/home/andre/Documents/log.log" 
     """
     # TODO: what should be put into a config file?
     parser = argparse.ArgumentParser("command line arguments")

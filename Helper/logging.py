@@ -10,18 +10,18 @@ def init_logging(level, file):
     """
 
     if level == "info":
-        level = logging.INFO
+        log_level = logging.INFO
     elif level == "debug":
-        level = logging.DEBUG
+        log_level = logging.DEBUG
     elif level == "warn":
-        level = logging.WARN
+        log_level = logging.WARN
     elif level == "critical":
-        level = logging.CRITICAL
+        log_level = logging.CRITICAL
     else:
-        level = logging.INFO
+        log_level = logging.INFO
 
     logging.basicConfig(
-        level=level,
+        level=log_level,
         format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[
             logging.FileHandler(file),
