@@ -212,7 +212,7 @@ class Dataset:
                 result.append(self.word_2_index[token])
             else:
                 result.append(self.word_2_index["UNK"])
-        result = [self.index_2_word["SOS"]] + result + [self.index_2_word["EOS"]]
+        result = result + [self.index_2_word["EOS"]]
         return result
 
     @staticmethod
