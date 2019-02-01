@@ -1,6 +1,8 @@
 from Helper.logging import init_logging
 from Seq2Seq_Pytorch_test.Data.dataset import Dataset
+from Seq2Seq_Pytorch_test.Model.vanilla_seq2seq import VanillaSeq2Seq
 import argparse
+import torch.utils.data as data
 
 
 if __name__ == "__main__":
@@ -43,5 +45,46 @@ if __name__ == "__main__":
     dataset.dump_vocab(vocab_path, vocab_name)
     # now we can use the vocab for training
 
+    # TODO: parameterize this
+    hidden_size = 512
+    batch_size = 32
+    vocab_size = len(dataset.vocab)
+    embedding_dimension = 256
+    cuda_enabled = True
+    epochs = 50
+    validate_every_batch = 2000
+
     # build pytorch model
-    # run training on model
+    model = VanillaSeq2Seq(
+        hidden_size=hidden_size,
+        batch_size=batch_size,
+        vocab_size=vocab_size,
+        embedding_dimension=embedding_dimension,
+        cuda_enabled=cuda_enabled,
+        sos_index=dataset.word_2_index["SOS"]
+    )
+    data_loader_params = {
+        'batch_size': batch_size,
+        'shuffle': True,
+        'num_workers': 6
+    }
+    # TODO: override the collate_fn of DataLoader to PAD to longest element - and tokenize
+    training_generator = data.DataLoader(dataset.partitions["training"], **data_loader_params)
+    validation_generator = data.DataLoader(dataset.partitions["validation"], **data_loader_params)
+    testing_generator = data.DataLoader(dataset.partitions["testing"], **data_loader_params)
+    global_step = 0
+    for i in range(epochs):
+        # iterate over all items in training and bundle mini_batches in random order
+        for batch_x, batch_y in training_generator:
+            loss, acc = model.training_iteration(batch_x, batch_y, batch_y_mask)
+            if global_step % print_every_batch == 0 and global_step > 0:
+                # TODO: print here
+                pass
+            if global_step % validate_every_batch == 0 and global_step > 0:
+                # TODO: validate here
+                # TODO: save on improvement
+                pass
+            global_step += 1
+    for batch_x, batch_y in testing_generator:
+        loss, acc = model.validation_iteration(batch_x, batch_y, batch_y_mask)
+        # TODO: print the result
