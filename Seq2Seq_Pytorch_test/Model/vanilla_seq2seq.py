@@ -5,6 +5,7 @@ from torch import optim
 import torch.nn.functional as F
 import random
 import numpy as np
+import os
 
 
 class VanillaSeq2Seq:
@@ -92,7 +93,7 @@ class VanillaSeq2Seq:
         decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
         # reshape y from (batch, time) to (time, batch)
         y = y.permute(1, 0)  # shape: (time, batch)
-        decoder_input = [self.sos_index] * batch_size  # shape: (batch)
+        decoder_input = [self.sos_index] * self.batch_size  # shape: (batch)
         if self.cuda_enabled:
             decoder_input = torch.cuda.LongTensor(decoder_input)
         else:
@@ -138,6 +139,9 @@ class VanillaSeq2Seq:
             #batch_accuracy = np.mean(acc.numpy())
             acc_numpy = acc.numpy()
 
+        # we have to change the dimensions of masking from [batch, time] to [time, batch]
+        mask = np.swapaxes(mask, 1, 0)
+
         # summarize the masking array to get the amount of unmasked elements
         unmasked_count = np.sum(mask, axis=0)
         # apply masking to accuracy array and summarize the correct hits
@@ -149,36 +153,47 @@ class VanillaSeq2Seq:
 
         return loss, batch_loss, mean_batch_accuracy
 
-    def training_iteration(self, x, y, mask):
+    def training_iteration(self, batch):
         """
         A Training iteration with backpropagation.
 
-        :param x: input sequence batch of shape: [batch, time]
-        :param y: target sequence batch of shape: [batch, time]
-        :param mask: target sequence masking batch of shape: [batch, time]
+        :param batch: contains all the data of one batch in the shape: [batch, x-y-m, length]
+            [:, 0] = x
+            [:, 1] = y
+            [:, 2] = mask
+            len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
+        batch = np.array(batch)
+        x = np.array(batch[:, 0].tolist())
+        y = np.array(batch[:, 1].tolist())
+        m = np.array(batch[:, 2].tolist())
         teacher_force = random.random() < self.teacher_force_probability
-        loss, batch_loss, batch_accuracy = self.model_iteration(x, y, mask, teacher_force)
+        loss, batch_loss, batch_accuracy = self.model_iteration(x, y, m, teacher_force)
         loss.backward()
-        torch.nn.utils.clip_grad_norm(self.encoder.parameters(), self.gradient_clipping_limit)
-        torch.nn.utils.clip_grad_norm(self.decoder.parameters(), self.gradient_clipping_limit)
+        torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.gradient_clipping_limit)
+        torch.nn.utils.clip_grad_norm_(self.decoder.parameters(), self.gradient_clipping_limit)
         self.encoder_optimizer.step()
         self.decoder_optimizer.step()
-
         return batch_loss, batch_accuracy
 
-    def validation_iteration(self, x, y, mask):
+    def validation_iteration(self, batch):
         """
         A validation iteration without backpropagation,
 
-        :param x: input sequence batch of shape: [batch, time]
-        :param y: target sequence batch of shape: [batch, time]
-        :param mask: target sequence masking batch of shape: [batch, time]
+        :param batch: contains all the data of one batch in the shape: [batch, x-y-m, length]
+            [:, 0] = x
+            [:, 1] = y
+            [:, 2] = mask
+            len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
+        batch = np.array(batch)
+        x = np.array(batch[:, 0].tolist())
+        y = np.array(batch[:, 1].tolist())
+        m = np.array(batch[:, 2].tolist())
         with torch.no_grad():
-            _, batch_loss, batch_accuracy = self.model_iteration(x, y, mask, teacher_force=False)
+            _, batch_loss, batch_accuracy = self.model_iteration(x, y, m, teacher_force=False)
         return batch_loss, batch_accuracy
 
     def generation_iteration(self, x, limit=1000):
@@ -223,6 +238,22 @@ class VanillaSeq2Seq:
                 if generated_index == 5 or len(result) > limit:
                     break
             return result
+
+    def save(self, path, name, acc):
+        """
+        Stores the model weights to disk at the given path with the given name.
+        In addition, the accuracy of this state will be documented in a text file next to the stored weights.
+
+        :param path: destination path (absolute - should be checked for existence)
+        :param name: name of the dump
+        :param acc: validation accuracy of the dump
+        """
+        assert os.path.isdir(path)
+        torch.save(self.encoder, os.path.join(path, "encoder." + name))
+        torch.save(self.decoder, os.path.join(path, "decoder." + name))
+        with open(os.path.join(path, "details.md"), "w") as f:
+            f.write("validation accuracy of model: %2.4f\n" % acc)
+
 
 
 class Encoder(nn.Module):

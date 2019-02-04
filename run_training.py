@@ -1,8 +1,14 @@
+import logging as log
 from Helper.logging import init_logging
 from Seq2Seq_Pytorch_test.Data.dataset import Dataset
 from Seq2Seq_Pytorch_test.Model.vanilla_seq2seq import VanillaSeq2Seq
 import argparse
 import torch.utils.data as data
+import time
+import datetime
+import numpy as np
+import os
+from tensorboard_logger import configure, log_value
 
 
 if __name__ == "__main__":
@@ -46,13 +52,25 @@ if __name__ == "__main__":
     # now we can use the vocab for training
 
     # TODO: parameterize this
-    hidden_size = 512
-    batch_size = 32
+    hidden_size = 128
+    batch_size = 4
     vocab_size = len(dataset.vocab)
-    embedding_dimension = 256
+    embedding_dimension = 64
     cuda_enabled = True
     epochs = 50
     validate_every_batch = 2000
+    print_every_batch = 100
+    model_save_path = os.path.join(args.vocab_export_path, "model")
+    if not os.path.isdir(model_save_path):
+        os.makedirs(model_save_path)
+    tensorboard_log_dir = os.path.join(args.vocab_export_path, "tensorboard")
+    if not os.path.isdir(tensorboard_log_dir):
+        os.makedirs(tensorboard_log_dir)
+    tensorboard_log_dir = os.path.join(tensorboard_log_dir,
+                                       datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+    if not os.path.isdir(tensorboard_log_dir):
+        os.makedirs(tensorboard_log_dir)
+    configure(tensorboard_log_dir)
 
     # build pytorch model
     model = VanillaSeq2Seq(
@@ -63,28 +81,159 @@ if __name__ == "__main__":
         cuda_enabled=cuda_enabled,
         sos_index=dataset.word_2_index["SOS"]
     )
-    data_loader_params = {
-        'batch_size': batch_size,
-        'shuffle': True,
-        'num_workers': 6
-    }
-    # TODO: override the collate_fn of DataLoader to PAD to longest element - and tokenize
-    training_generator = data.DataLoader(dataset.partitions["training"], **data_loader_params)
-    validation_generator = data.DataLoader(dataset.partitions["validation"], **data_loader_params)
-    testing_generator = data.DataLoader(dataset.partitions["testing"], **data_loader_params)
+
+    shuffle_data_loader = True
+    num_workers = 6
+
+    training_generator = data.DataLoader(dataset.partitions["training"],
+                                         batch_size= batch_size,
+                                         shuffle=shuffle_data_loader,
+                                         num_workers=num_workers,
+                                         collate_fn=dataset.partitions["training"].collate)
+    validation_generator = data.DataLoader(dataset.partitions["validation"],
+                                           batch_size=batch_size,
+                                           shuffle=shuffle_data_loader,
+                                           num_workers=num_workers,
+                                           collate_fn=dataset.partitions["validation"].collate)
+    testing_generator = data.DataLoader(dataset.partitions["testing"],
+                                        batch_size=batch_size,
+                                        shuffle=shuffle_data_loader,
+                                        num_workers=num_workers,
+                                        collate_fn=dataset.partitions["testing"].collate)
     global_step = 0
+    mean_loss = 0
+    mean_acc = 0
+    validation_cnt = 0
+    global_acc = 0
+    time_array = []
+
+
+    log.info("[training]\t[start]")
     for i in range(epochs):
+        b_cnt = 0
         # iterate over all items in training and bundle mini_batches in random order
-        for batch_x, batch_y in training_generator:
-            loss, acc = model.training_iteration(batch_x, batch_y, batch_y_mask)
-            if global_step % print_every_batch == 0 and global_step > 0:
-                # TODO: print here
-                pass
-            if global_step % validate_every_batch == 0 and global_step > 0:
-                # TODO: validate here
-                # TODO: save on improvement
-                pass
+        for batch in training_generator:
+            start_batch = time.time()
+            try:
+                loss, acc = model.training_iteration(batch)
+            except Exception as e:
+                log.error("There was an error during training!")
+                _x = np.array(batch[:, 0].tolist())
+                _y = np.array(batch[:, 1].tolist())
+                log.debug("x_len: %d" % len(_x))
+                log.debug("y_len: %d" % len(_y))
+                log.error(str(e))
+                raise e
+            log_value("training batch loss", loss, global_step)
+            log_value("training batch acc", acc, global_step)
+            end_batch = time.time()
+            time_array.append(end_batch-start_batch)
+            mean_loss += loss
+            mean_acc += acc
             global_step += 1
-    for batch_x, batch_y in testing_generator:
-        loss, acc = model.validation_iteration(batch_x, batch_y, batch_y_mask)
-        # TODO: print the result
+            b_cnt += 1
+            if global_step % print_every_batch == 0 and global_step > 0:
+                mean_it_duration = datetime.timedelta(seconds=float(np.mean(np.array(time_array))))
+                log_message = "[training]\t"
+                log_message += "[global step]: %d\t" % global_step
+                log_message += "[batch]: %d\t" % b_cnt
+                log_message += "[mean values over %d batches]: " % print_every_batch
+                log_message += "loss: %2.4f " % (mean_loss / print_every_batch)
+                log_message += "acc: %2.4f\t" % (mean_acc / print_every_batch)
+                log_message += "[mean iteration duration]: %s" % mean_it_duration
+                log.info(log_message)
+                mean_loss = 0
+                mean_acc = 0
+                time_array = []
+            if global_step % validate_every_batch == 0 and global_step > 0:
+                log.info("[validation]\t[start]")
+                validation_cnt += 1
+                valid_step = 0
+                valid_loss = 0
+                valid_acc = 0
+                complete_validation_loss = 0
+                complete_validation_acc = 0
+                valid_time_array = []
+                valid_start_time = time.time()
+                for valid_batch in validation_generator:
+                    valid_iteration_start = time.time()
+                    loss, acc = model.validation_iteration(valid_batch)
+                    valid_iteration_end = time.time()
+                    valid_time_array.append(valid_iteration_end-valid_iteration_start)
+                    valid_loss += loss
+                    valid_acc += acc
+                    complete_validation_loss += loss
+                    complete_validation_acc += acc
+                    valid_step += 1
+                    if valid_step % print_every_batch == 0 and valid_step > 0:
+                        mean_it_duration = datetime.timedelta(seconds=float(np.mean(np.array(valid_time_array))))
+                        log_message = "[validation]\t"
+                        log_message += "[valid batch]: %d\t" % valid_step
+                        log_message += "[mean values over %d batches]: " % print_every_batch
+                        log_message += "loss: %2.4f " % (valid_loss / print_every_batch)
+                        log_message += "acc: %2.4f\t" % (valid_acc / print_every_batch)
+                        log_message += "[mean iteration duration]: %s" % mean_it_duration
+                        log.info(log_message)
+                        valid_loss = 0
+                        valid_acc = 0
+                        valid_time_array = []
+                valid_end_time = time.time()
+                log.info("[validation]\t[duration]: %s" % datetime.timedelta(seconds=valid_end_time-valid_start_time))
+                complete_validation_loss /= valid_step
+                complete_validation_acc /= valid_step
+                log_value("validation loss", complete_validation_loss, global_step)
+                log_value("validation acc", complete_validation_acc, global_step)
+                log_message = "[validation]\t"
+                log_message += "[results #%d]\t" % validation_cnt
+                log_message += "[mean values over complete validation]: "
+                log_message += "loss: %2.4f " % complete_validation_loss
+                log_message += "acc: %2.4f\t" % complete_validation_acc
+                log.info(log_message)
+                if complete_validation_acc > global_acc:
+                    log.info("Better accuracy reached! old: %2.4f new: %2.4f - Saving model"
+                             % (global_acc, complete_validation_acc))
+                    model.save(path=model_save_path, name="best.checkpoint", acc=complete_validation_acc)
+                    global_acc = complete_validation_acc
+    log.info("[training]\t[done]")
+    log.info("[testing]\t[start]")
+    test_loss = []
+    test_acc = []
+    print_loss = 0
+    print_acc = 0
+    test_cnt = 0
+    test_start = time.time()
+    test_time_array = []
+    # TODO: test this on best accuracy model!!!
+    for batch in testing_generator:
+        _s = time.time()
+        loss, acc = model.validation_iteration(batch)
+        _e = time.time()
+        test_time_array.append(_e-_s)
+        test_loss.append(loss)
+        test_acc.append(acc)
+        print_loss += loss
+        print_acc += acc
+        test_cnt += 1
+        if test_cnt % print_every_batch == 0 and test_cnt > 0:
+            mean_it_duration = datetime.timedelta(seconds=float(np.mean(np.array(test_time_array))))
+            log_message = "[testing]\t"
+            log_message += "[test batch]. %d\t" % test_cnt
+            log_message += "[mean values over %d batches]: " % print_every_batch
+            log_message += "loss: %2.4f " % (print_loss / print_every_batch)
+            log_message += "acc: %2.4f\t" % (print_acc / print_every_batch)
+            log_message += "[mean iteration duration]. %s" % mean_it_duration
+            log.info(log_message)
+            print_loss = 0
+            print_acc = 0
+            test_time_array = []
+    log_message = "[testing] [done]"
+    log.info(log_message)
+    test_end = time.time()
+    log_message = "[testing] [duration]: %s" % datetime.timedelta(seconds=test_end-test_start)
+    log.info(log_message)
+    log_message = "[testing]\t"
+    log_message += "[results]\t"
+    log_message += "[mean values over complete test set]: "
+    log_message += "loss: %2.4f "
+    log_message += "acc: %2.4f"
+    log.info(log_message)
