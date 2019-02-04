@@ -64,9 +64,9 @@ class Dataset:
                                                                           random_state=42,
                                                                           shuffle=True)
         # create pytorch datasets as partitions
-        self.partitions["training"] = Partition(_train_x, _train_y)
-        self.partitions["validation"] = Partition(_validation_x, _validation_y)
-        self.partitions["testing"] = Partition(_test_x, _test_y)
+        self.partitions["training"] = Partition(_train_x, _train_y, self.tokenizer)
+        self.partitions["validation"] = Partition(_validation_x, _validation_y, self.tokenizer)
+        self.partitions["testing"] = Partition(_test_x, _test_y, self.tokenizer)
         log.info("sizes of the dataset:")
         log.info("training: %d" % len(self.partitions["training"]))
         log.info("validation: %d" % len(self.partitions["validation"]))
@@ -149,6 +149,10 @@ class Dataset:
             self.index_2_word[i] = word
             self.word_2_index[word] = i
 
+        self.partitions["training"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+
     def dump_vocab(self, p, title):
         """
         Dump the vocab, i2w and w2i variables to disk.
@@ -173,7 +177,7 @@ class Dataset:
             pkl.dump(self.index_2_word, f)
         with open(w2i_path, "wb") as f:
             pkl.dump(self.word_2_index, f)
-        log.debug("done dumping vocab and indexing dicts to %s under the title %s" % (path, title))
+        log.debug("done dumping vocab and indexing dicts to %s under the title %s" % (p, title))
 
     def load_vocab(self, p, title):
         """
