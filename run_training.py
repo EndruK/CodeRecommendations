@@ -24,6 +24,9 @@ if __name__ == "__main__":
 
     parser.add_argument("log_level", type=str, help="Define the log level (debug, info, warn, critical)")
     parser.add_argument("log_path", type=str, help="Define the path to store the log file to")
+
+    parser.add_argument("-g", "--gpu_ids", nargs='+', help="Set list of GPUs (default=0)", default=['0'])
+
     args = parser.parse_args()
     csv_path = args.csv_path
     tokenizer = args.tokenizer
@@ -37,6 +40,11 @@ if __name__ == "__main__":
     log_level = args.log_level
     log_path = args.log_path
     init_logging(log_level, log_path)
+
+    gpu_id_list = args.gpu_ids
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join([str(i) for i in gpu_id_list])
+    log.debug("set visible GPUs: %s" % str(gpu_id_list))
 
     if tokenizer == "nltk":
         from Seq2Seq_Pytorch_test.Data.tokenizers.nltk_tokenizer import NLTKTokenizer as Tok
@@ -86,7 +94,7 @@ if __name__ == "__main__":
     num_workers = 6
 
     training_generator = data.DataLoader(dataset.partitions["training"],
-                                         batch_size= batch_size,
+                                         batch_size=batch_size,
                                          shuffle=shuffle_data_loader,
                                          num_workers=num_workers,
                                          collate_fn=dataset.partitions["training"].collate)
@@ -106,7 +114,6 @@ if __name__ == "__main__":
     validation_cnt = 0
     global_acc = 0
     time_array = []
-
 
     log.info("[training]\t[start]")
     for i in range(epochs):
@@ -136,6 +143,7 @@ if __name__ == "__main__":
                 mean_it_duration = datetime.timedelta(seconds=float(np.mean(np.array(time_array))))
                 log_message = "[training]\t"
                 log_message += "[global step]: %d\t" % global_step
+                log_message += "[epoch]: %d\t" % i
                 log_message += "[batch]: %d\t" % b_cnt
                 log_message += "[mean values over %d batches]: " % print_every_batch
                 log_message += "loss: %2.4f " % (mean_loss / print_every_batch)
