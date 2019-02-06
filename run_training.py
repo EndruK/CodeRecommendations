@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # initialize the dataset
     dataset = Dataset(csv_path, Tok)
     dataset.split_dataset()
-    dataset.build_vocab(top_k=top_k, num_processes=num_processes)
+    dataset.build_vocab_single_process(top_k=top_k)
     dataset.dump_vocab(vocab_path, vocab_name)
     # now we can use the vocab for training
 

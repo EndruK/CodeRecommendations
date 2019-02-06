@@ -85,7 +85,8 @@ class Dataset:
         # assume there is something in the training partition
         assert self.partitions["training"] is not None
         _vocab = {}
-        log.debug("start vocab creation")
+        log.debug("start vocab creation - multi process")
+        log.debug("#processes: %d" % num_processes)
         processes = []
         # spawn a process pool
         pool = multiprocessing.Pool(processes=num_processes)
@@ -127,6 +128,59 @@ class Dataset:
                     _vocab[key] += value
         _end = time.time()
         log.debug("complete vocab creation time: %s" % datetime.timedelta(seconds=_end-_start))
+        # sort vocab based on token frequency
+        _sorted_vocab = sorted([[key, value] for key, value in _vocab.items()],
+                               key=lambda j: j[1],
+                               reverse=True)
+        log.info("size of vocab before removing of non top-k elements: %d" % len(_vocab))
+        log.debug("top 10 elements in vocab: %s" % str(_sorted_vocab[:10]))
+        log.debug("adding special tokens: %s" % str(Dataset.SPECIAL_TOKENS))
+        # keep top-k tokens as vocab
+        _sorted_vocab = _sorted_vocab[:top_k]
+        vocab_list = [token for token, _ in _sorted_vocab]
+        # add special tokens to the left of the vocab
+        vocab_list = Dataset.SPECIAL_TOKENS + vocab_list
+
+        # create index mappings
+        self.vocab = vocab_list
+        self.index_2_word = {}
+        self.word_2_index = {}
+        for i in range(len(self.vocab)):
+            word = self.vocab[i]
+            self.index_2_word[i] = word
+            self.word_2_index[word] = i
+
+        self.partitions["training"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+
+    def build_vocab_single_process(self, top_k, include_y=False):
+        # assume there is something in the training partition
+        assert self.partitions["training"] is not None
+        _vocab = {}
+        log.debug("start vocab creation - single process")
+        _start = time.time()
+        t = self.tokenizer()
+        cnt = 1
+        for x, y in self.partitions["training"]:
+            if cnt % 200 == 0:
+                log.debug("process tuple %d of %d" % (cnt, len(self.partitions["training"])))
+            tokens = t.tokenize(x)
+            for token in tokens:
+                if token not in _vocab:
+                    _vocab[token] = 1
+                else:
+                    _vocab[token] += 1
+            if include_y:
+                tokens = t.tokenize(y)
+                for token in tokens:
+                    if token not in _vocab:
+                        _vocab[token] = 1
+                    else:
+                        _vocab[token] += 1
+            cnt += 1
+        _end = time.time()
+        log.debug("complete vocab creation time: %s" % datetime.timedelta(seconds=_end - _start))
         # sort vocab based on token frequency
         _sorted_vocab = sorted([[key, value] for key, value in _vocab.items()],
                                key=lambda j: j[1],
