@@ -74,6 +74,8 @@ class Dataset:
 
     def build_vocab(self, top_k, num_processes=5, include_y=False):
         """
+        Multi-Process version. Works on small CSV files but has problems with larger.
+        Connected issue: https://github.com/EndruK/CodeRecommendations/issues/1
         Create the vocabulary on the training dataset.x strings and the tokenizer of this dataset
         also, fills the member-attributes of vocab, index_2_word and word_2_index.
         Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
@@ -155,6 +157,16 @@ class Dataset:
         self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
 
     def build_vocab_single_process(self, top_k, include_y=False):
+        """
+        Main-Process version. Workaround for https://github.com/EndruK/CodeRecommendations/issues/1
+        Create the vocabulary on the training dataset.x strings and the tokenizer of this dataset
+        also, fills the member-attributes of vocab, index_2_word and word_2_index.
+        Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
+        vocab is based on a temporary partition scheme!
+        :param top_k: number of top-k tokens in the resulting vocabulary
+        :param num_processes: how many processes should be used to create the vocabulary (default=5)
+        :param include_y: flag whether to include tokens of target y to vocab or not (default=False)
+        """
         # assume there is something in the training partition
         assert self.partitions["training"] is not None
         _vocab = {}
