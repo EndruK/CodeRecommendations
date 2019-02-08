@@ -75,6 +75,17 @@ class Partition(data.Dataset):
         """
         return self.tokenizer.tokenize(sentence)
 
+    def collate_single(self, x):
+        """
+        Collate function for a single x
+
+        :param x: input sequence
+        :return: index array in a 1 batch
+        """
+        x = self.tokenize_sentence(x)
+        x = self.word_sequence_to_index_sequence(x)
+        return x
+
     def collate(self, batch):
         """
         Function to use as collate for torch.utils.data.DataLoader.

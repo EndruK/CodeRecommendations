@@ -285,6 +285,18 @@ class Dataset:
         result = result + [self.index_2_word["EOS"]]
         return result
 
+    def index_array_to_text(self, index_array):
+        """
+        Translate an index array back to a word array.
+
+        :param index_array: the index array
+        :return: the word array
+        """
+        result = []
+        for item in index_array:
+            result.append(self.index_2_word[item])
+        return result
+
     @staticmethod
     def check_and_delete(p):
         """

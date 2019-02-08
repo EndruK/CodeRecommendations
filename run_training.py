@@ -9,6 +9,8 @@ import datetime
 import numpy as np
 import os
 from tensorboard_logger import configure, log_value
+import random
+import sys
 
 
 if __name__ == "__main__":
@@ -202,6 +204,17 @@ if __name__ == "__main__":
                              % (global_acc, complete_validation_acc))
                     model.save(path=model_save_path, name="best.checkpoint", acc=complete_validation_acc)
                     global_acc = complete_validation_acc
+                # TODO: example generation here
+                rnd_index = random.randint(0, len(dataset.partitions["validation"]))
+                rnd_x, rnd_y = dataset.partitions["validation"][rnd_index]
+                rnd_x_indices = dataset.partitions["validation"].collate_single(rnd_x)
+                rnd_result = model.generation_iteration(rnd_x_indices)
+                result_string = "".join(dataset.index_array_to_text(rnd_result))
+                log_str = "[validation]\t[example generation]\n"
+                log_str += "[x]: %s\n" % rnd_x
+                log_str += "[target]: %s\n" % rnd_y
+                log_str += "[result]: %s\n" % result_string
+                log.info(log_str)
     log.info("[training]\t[done]")
     log.info("[testing]\t[start]")
     test_loss = []
@@ -211,7 +224,9 @@ if __name__ == "__main__":
     test_cnt = 0
     test_start = time.time()
     test_time_array = []
-    # TODO: test this on best accuracy model!!!
+
+    model.load(path=model_save_path, name="best.checkpoint")
+
     for batch in testing_generator:
         _s = time.time()
         loss, acc = model.validation_iteration(batch)
@@ -234,14 +249,14 @@ if __name__ == "__main__":
             print_loss = 0
             print_acc = 0
             test_time_array = []
-    log_message = "[testing] [done]"
+    log_message = "[testing]\t[done]"
     log.info(log_message)
     test_end = time.time()
-    log_message = "[testing] [duration]: %s" % datetime.timedelta(seconds=test_end-test_start)
+    log_message = "[testing]\t[duration]: %s" % datetime.timedelta(seconds=test_end-test_start)
     log.info(log_message)
     log_message = "[testing]\t"
     log_message += "[results]\t"
     log_message += "[mean values over complete test set]: "
-    log_message += "loss: %2.4f "
-    log_message += "acc: %2.4f"
+    log_message += "loss: %2.4f " % np.mean(np.array(test_loss))
+    log_message += "acc: %2.4f" % np.mean(np.array(test_acc))
     log.info(log_message)
