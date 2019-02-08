@@ -235,6 +235,7 @@ class VanillaSeq2Seq:
                     decoder_input = Variable(torch.LongTensor(top_index))
                 generated_index = top_index.squeeze(0).data.item()  # shape: (1)
                 result.append(generated_index)
+                # TODO: change 5 to eof token index
                 if generated_index == 5 or len(result) > limit:
                     break
             return result
@@ -254,6 +255,19 @@ class VanillaSeq2Seq:
         with open(os.path.join(path, "details.md"), "w") as f:
             f.write("validation accuracy of model: %2.4f\n" % acc)
 
+    def load(self, path, name):
+        """
+        Loads the model weights from disk
+        :param path: path of the stored weights (absolute - should be checked for existence)
+        :param name: name of the dump
+        """
+        assert os.path.isdir(path)
+        assert os.path.isfile(os.path.join(path, "encoder." + name))
+        assert os.path.isfile(os.path.join(path, "decoder." + name))
+        self.encoder = torch.load(os.path.join(path, "encoder." + name))
+        self.decoder = torch.load(os.path.join(path, "decoder." + name))
+        self.encoder.eval()
+        self.decoder.eval()
 
 
 class Encoder(nn.Module):
