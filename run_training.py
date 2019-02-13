@@ -173,7 +173,18 @@ if __name__ == "__main__":
                 valid_start_time = time.time()
                 for valid_batch in validation_generator:
                     valid_iteration_start = time.time()
-                    loss, acc = model.validation_iteration(valid_batch)
+                    # NOTE: unexpected batch sizes have to be skipped!
+                    if len(valid_batch) != batch_size:
+                        log_msg = "[validation]\tbatch is of wrong size - skipping! "
+                        log_msg += "(expected: %d - got: %d)" % (batch_size, len(valid_batch))
+                        log.warning(log_msg)
+                        continue
+                    try:
+                        loss, acc = model.validation_iteration(valid_batch)
+                    except Exception as e:
+                        log.error("there was an error during validation!")
+                        log.debug("valid batch:", valid_batch)
+                        raise e
                     valid_iteration_end = time.time()
                     valid_time_array.append(valid_iteration_end-valid_iteration_start)
                     valid_loss += loss
@@ -210,7 +221,6 @@ if __name__ == "__main__":
                              % (global_acc, complete_validation_acc))
                     model.save(path=model_save_path, name="best.checkpoint", acc=complete_validation_acc)
                     global_acc = complete_validation_acc
-                # TODO: example generation here
                 rnd_index = random.randint(0, len(dataset.partitions["validation"]))
                 rnd_x, rnd_y = dataset.partitions["validation"][rnd_index]
                 rnd_x_indices = dataset.partitions["validation"].collate_single(rnd_x)
