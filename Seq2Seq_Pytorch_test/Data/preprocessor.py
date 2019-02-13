@@ -3,6 +3,8 @@ import random
 import logging as log
 import json
 import csv
+from Seq2Seq_Pytorch_test.Data.tokenizers.json_tokenizer import JsonTokenizer as Tokenizer
+from typing import List
 
 
 class Preprocessor:
@@ -11,12 +13,14 @@ class Preprocessor:
     STATEMENT_LIMIT = 100
 
     @staticmethod
-    def preprocess(path_to_serialized_ast_methods, output_path):
+    def preprocess(path_to_serialized_ast_methods, output_path, output_name, length_limits: List[int]):
         """
         Preprocessing procesdure
         creates a csv file for all x-y tuples
         :param path_to_serialized_ast_methods: absolute path to serialized AST files of methods
         :param output_path: target path of the resulting csv
+        :param output_name: name of the target csv file (eg.: "tuples.csv")
+        :param length_limits: define on how many tokens a tuple should be ignored [x_limit, y_limit]
         """
         log.debug("start preprocessing")
         # get the paths to all method files
@@ -33,7 +37,7 @@ class Preprocessor:
         log.info("amount of files in dataset: %d" % len(paths))
 
         # open csv file
-        csv_file_path = os.path.join(output_path, "tuples.csv")
+        csv_file_path = os.path.join(output_path, output_name)
         # check if there is already a file
         if os.path.isfile(csv_file_path):
             log.debug("removing old file at %s" % csv_file_path)
@@ -43,10 +47,13 @@ class Preprocessor:
         csv_file = open(csv_file_path, "w")
         csv_writer = csv.writer(csv_file, lineterminator="\n", delimiter=",", quotechar="'")
         csv_writer.writerow(["x", "y"])
+        # instantiate tokenizer
+        tok = Tokenizer()
 
         # extracting target nodes
         log.debug("starting statement extraction")
         sum_of_tuples = 0
+        sum_of_ignored_tuple = 0
         for i in range(len(paths)):
             if i % 100 == 0:
                 log.debug("processing statement extraction - file %d of %d" % (i, len(paths)))
@@ -54,11 +61,18 @@ class Preprocessor:
             with open(paths[i], "r") as f:
                 json_object = json.load(f)
             tuples = Preprocessor.extract_statements(json_object, 500)
-            sum_of_tuples += len(tuples)
+            #sum_of_tuples += len(tuples)
             for (x, y) in tuples:
-                csv_writer.writerow((x, y))
+                x_tok = tok.tokenize(x)
+                y_tok = tok.tokenize(y)
+                if len(x_tok) <= length_limits[0] and len(y_tok) <= length_limits[1]:
+                    csv_writer.writerow((x, y))
+                    sum_of_tuples += 1
+                else:
+                    sum_of_ignored_tuple += 1
         csv_file.close()
         log.info("amount of tuples over whole dataset: %d" % sum_of_tuples)
+        log.info("amount of ignored tuples over whole dataset: %d" % sum_of_ignored_tuple)
         log.debug("done statement extraction")
         log.debug("done preprocessing")
         log.info("path to csv file: %s" % csv_file_path)

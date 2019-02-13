@@ -64,9 +64,9 @@ class Dataset:
                                                                           random_state=42,
                                                                           shuffle=True)
         # create pytorch datasets as partitions
-        self.partitions["training"] = Partition(_train_x, _train_y)
-        self.partitions["validation"] = Partition(_validation_x, _validation_y)
-        self.partitions["testing"] = Partition(_test_x, _test_y)
+        self.partitions["training"] = Partition(_train_x, _train_y, self.tokenizer)
+        self.partitions["validation"] = Partition(_validation_x, _validation_y, self.tokenizer)
+        self.partitions["testing"] = Partition(_test_x, _test_y, self.tokenizer)
         log.info("sizes of the dataset:")
         log.info("training: %d" % len(self.partitions["training"]))
         log.info("validation: %d" % len(self.partitions["validation"]))
@@ -74,6 +74,8 @@ class Dataset:
 
     def build_vocab(self, top_k, num_processes=5, include_y=False):
         """
+        Multi-Process version. Works on small CSV files but has problems with larger.
+        Connected issue: https://github.com/EndruK/CodeRecommendations/issues/1
         Create the vocabulary on the training dataset.x strings and the tokenizer of this dataset
         also, fills the member-attributes of vocab, index_2_word and word_2_index.
         Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
@@ -85,7 +87,8 @@ class Dataset:
         # assume there is something in the training partition
         assert self.partitions["training"] is not None
         _vocab = {}
-        log.debug("start vocab creation")
+        log.debug("start vocab creation - multi process")
+        log.debug("#processes: %d" % num_processes)
         processes = []
         # spawn a process pool
         pool = multiprocessing.Pool(processes=num_processes)
@@ -149,6 +152,73 @@ class Dataset:
             self.index_2_word[i] = word
             self.word_2_index[word] = i
 
+        self.partitions["training"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+
+    def build_vocab_single_process(self, top_k, include_y=False):
+        """
+        Main-Process version. Workaround for https://github.com/EndruK/CodeRecommendations/issues/1
+        Create the vocabulary on the training dataset.x strings and the tokenizer of this dataset
+        also, fills the member-attributes of vocab, index_2_word and word_2_index.
+        Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
+        vocab is based on a temporary partition scheme!
+        :param top_k: number of top-k tokens in the resulting vocabulary
+        :param num_processes: how many processes should be used to create the vocabulary (default=5)
+        :param include_y: flag whether to include tokens of target y to vocab or not (default=False)
+        """
+        # assume there is something in the training partition
+        assert self.partitions["training"] is not None
+        _vocab = {}
+        log.debug("start vocab creation - single process")
+        _start = time.time()
+        t = self.tokenizer()
+        cnt = 1
+        for x, y in self.partitions["training"]:
+            if cnt % 200 == 0:
+                log.debug("process tuple %d of %d" % (cnt, len(self.partitions["training"])))
+            tokens = t.tokenize(x)
+            for token in tokens:
+                if token not in _vocab:
+                    _vocab[token] = 1
+                else:
+                    _vocab[token] += 1
+            if include_y:
+                tokens = t.tokenize(y)
+                for token in tokens:
+                    if token not in _vocab:
+                        _vocab[token] = 1
+                    else:
+                        _vocab[token] += 1
+            cnt += 1
+        _end = time.time()
+        log.debug("complete vocab creation time: %s" % datetime.timedelta(seconds=_end - _start))
+        # sort vocab based on token frequency
+        _sorted_vocab = sorted([[key, value] for key, value in _vocab.items()],
+                               key=lambda j: j[1],
+                               reverse=True)
+        log.info("size of vocab before removing of non top-k elements: %d" % len(_vocab))
+        log.debug("top 10 elements in vocab: %s" % str(_sorted_vocab[:10]))
+        log.debug("adding special tokens: %s" % str(Dataset.SPECIAL_TOKENS))
+        # keep top-k tokens as vocab
+        _sorted_vocab = _sorted_vocab[:top_k]
+        vocab_list = [token for token, _ in _sorted_vocab]
+        # add special tokens to the left of the vocab
+        vocab_list = Dataset.SPECIAL_TOKENS + vocab_list
+
+        # create index mappings
+        self.vocab = vocab_list
+        self.index_2_word = {}
+        self.word_2_index = {}
+        for i in range(len(self.vocab)):
+            word = self.vocab[i]
+            self.index_2_word[i] = word
+            self.word_2_index[word] = i
+
+        self.partitions["training"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+        self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+
     def dump_vocab(self, p, title):
         """
         Dump the vocab, i2w and w2i variables to disk.
@@ -173,7 +243,7 @@ class Dataset:
             pkl.dump(self.index_2_word, f)
         with open(w2i_path, "wb") as f:
             pkl.dump(self.word_2_index, f)
-        log.debug("done dumping vocab and indexing dicts to %s under the title %s" % (path, title))
+        log.debug("done dumping vocab and indexing dicts to %s under the title %s" % (p, title))
 
     def load_vocab(self, p, title):
         """
@@ -212,7 +282,19 @@ class Dataset:
                 result.append(self.word_2_index[token])
             else:
                 result.append(self.word_2_index["UNK"])
-        result = [self.index_2_word["SOS"]] + result + [self.index_2_word["EOS"]]
+        result = result + [self.index_2_word["EOS"]]
+        return result
+
+    def index_array_to_text(self, index_array):
+        """
+        Translate an index array back to a word array.
+
+        :param index_array: the index array
+        :return: the word array
+        """
+        result = []
+        for item in index_array:
+            result.append(self.index_2_word[item])
         return result
 
     @staticmethod
