@@ -117,6 +117,12 @@ if __name__ == "__main__":
     global_acc = 0
     time_array = []
 
+    log_msg = "[meta]\t"
+    log_msg += "[training size]: %d\t" % len(dataset.partitions["training"])
+    log_msg += "[validation size]: %d\t" % len(dataset.partitions["validation"])
+    log_msg += "[testing size]: %d" % len(dataset.partitions["testing"])
+    log.debug(log_msg)
+
     log.info("[training]\t[start]")
     for i in range(epochs):
         b_cnt = 0
