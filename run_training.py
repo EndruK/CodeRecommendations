@@ -129,6 +129,11 @@ if __name__ == "__main__":
         # iterate over all items in training and bundle mini_batches in random order
         for batch in training_generator:
             start_batch = time.time()
+            if len(batch) != batch_size:
+                log_msg = "[training]\tbatch is of wrong size - skipping! "
+                log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch))
+                log.warning(log_msg)
+                continue
             try:
                 loss, acc = model.training_iteration(batch)
             except Exception as e:
@@ -245,6 +250,11 @@ if __name__ == "__main__":
 
     for batch in testing_generator:
         _s = time.time()
+        if len(batch) != batch_size:
+            log_msg = "[testing]\tbatch is of wrong size - skipping! "
+            log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch))
+            log.warning(log_msg)
+            continue
         loss, acc = model.validation_iteration(batch)
         _e = time.time()
         test_time_array.append(_e-_s)
