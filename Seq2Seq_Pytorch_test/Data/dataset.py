@@ -4,7 +4,6 @@ from sklearn.model_selection import train_test_split
 import time
 import datetime
 from Seq2Seq_Pytorch_test.Data.partition import Partition
-from Seq2Seq_Pytorch_test.Data.tokenizers.json_tokenizer import JsonTokenizer
 from typing import Dict
 import multiprocessing
 import math
@@ -164,7 +163,6 @@ class Dataset:
         Alternatively, you can just load a vocab dump using "load_vocab" - but keep in mind that the
         vocab is based on a temporary partition scheme!
         :param top_k: number of top-k tokens in the resulting vocabulary
-        :param num_processes: how many processes should be used to create the vocabulary (default=5)
         :param include_y: flag whether to include tokens of target y to vocab or not (default=False)
         """
         # assume there is something in the training partition
@@ -340,19 +338,3 @@ class Dataset:
                     else:
                         _vocab[token] += 1
         return _vocab
-
-
-if __name__ == "__main__":
-    log.basicConfig(
-        level=log.DEBUG,
-        format='%(asctime)s [%(levelname)s] %(message)s',
-        handlers=[
-            log.StreamHandler()
-        ]
-    )
-    path = "/home/andre/Documents/tuples_subset.csv"
-    vocab_path = "/home/andre/Documents"
-    ds = Dataset(path, JsonTokenizer)
-    ds.split_dataset()
-    ds.build_vocab(top_k=10000, num_processes=6)
-    ds.dump_vocab(vocab_path, "test")

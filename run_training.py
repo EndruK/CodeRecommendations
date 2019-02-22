@@ -10,7 +10,6 @@ import numpy as np
 import os
 from tensorboard_logger import configure, log_value
 import random
-import sys
 
 
 if __name__ == "__main__":
@@ -89,7 +88,8 @@ if __name__ == "__main__":
         vocab_size=vocab_size,
         embedding_dimension=embedding_dimension,
         cuda_enabled=cuda_enabled,
-        sos_index=dataset.word_2_index["SOS"]
+        sos_index=dataset.word_2_index["SOS"],
+        eos_index=dataset.word_2_index["EOS"]
     )
 
     shuffle_data_loader = True

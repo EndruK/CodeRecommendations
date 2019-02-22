@@ -16,6 +16,7 @@ class VanillaSeq2Seq:
                  embedding_dimension,
                  cuda_enabled,
                  sos_index,
+                 eos_index,
                  teacher_force_probability=0.5,
                  gradient_clipping_limit=5,
                  learning_rate=0.001):
@@ -42,6 +43,7 @@ class VanillaSeq2Seq:
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
         self.sos_index = sos_index
+        self.eos_index = eos_index
         self.teacher_force_probability = teacher_force_probability
         self.gradient_clipping_limit = gradient_clipping_limit
         self.learning_rate = learning_rate
@@ -236,7 +238,7 @@ class VanillaSeq2Seq:
                 generated_index = top_index.squeeze(0).data.item()  # shape: (1)
                 result.append(generated_index)
                 # TODO: change 5 to eof token index
-                if generated_index == 5 or len(result) > limit:
+                if generated_index == self.eos_index or len(result) > limit:
                     break
             return result
 
@@ -390,89 +392,3 @@ class Decoder(nn.Module):
         output = output.squeeze(0)  # shape: (batch, hidden)
         output = F.log_softmax(self.projection(output), dim=-1)  # shape: (batch, vocab)
         return output, hidden
-
-
-# TODO: remove this test code!
-if __name__ == "__main__":
-    input_1 = "the quick brown fox jumps over the lazy dog"
-    output_1 = "der schnelle braune fuchs springt ueber den faulen hund"
-    input_2 = "the slow green hedgehog runs past the dog"
-    output_2 = "der langsame gruene igel rennt am hund vorbei"
-    import nltk
-
-    tokens = nltk.word_tokenize(input_1)
-    tokens = tokens + nltk.word_tokenize(output_1)
-    tokens = tokens + nltk.word_tokenize(input_2)
-    tokens = tokens + nltk.word_tokenize(output_2)
-
-    vocab = {}
-    for t in tokens:
-        if t not in vocab:
-            vocab[t] = 1
-        else:
-            vocab[t] += 1
-    vocab_list = [key for key, _ in vocab.items()]
-    vocab_list = ["PAD", "UNK", "EMPTY", "INV", "SOS", "EOS"] + vocab_list
-    i2w = {}
-    w2i = {}
-    vocab_size = len(vocab_list)
-    for i in range(len(vocab_list)):
-        i2w[i] = vocab_list[i]
-        w2i[vocab_list[i]] = i
-
-    def sentence_to_timed_series(text):
-        tokens = nltk.word_tokenize(text)
-        result = [w2i[w] for w in tokens]
-        result = result + [w2i["EOS"]]
-        return result
-
-    def pad_batch(batch):
-        l = 0
-        index = -1
-        for i in range(len(batch)):
-            if len(batch[i]) > l:
-                l = len(batch[i])
-                index = i
-        mask = []
-        for i in range(len(batch)):
-            if i != index:
-                b_size = len(batch[i])
-                batch[i] = batch[i] + [w2i["PAD"]] * (l - b_size)
-                mask.append([1.0] * b_size + [0.0] * (l - b_size))
-            else:
-                mask.append([1.0] * l)
-        mask = np.array(mask)  # shape: (batch, time)
-        mask = np.swapaxes(mask, 1, 0)  # shape: (time, batch)
-
-        return batch, mask
-
-    batch_x = [sentence_to_timed_series(input_1), sentence_to_timed_series(input_2)]
-    batch_y = [sentence_to_timed_series(output_1), sentence_to_timed_series(output_2)]
-
-    batch_x, _ = pad_batch(batch_x)
-    batch_y, mask_y = pad_batch(batch_y)
-
-
-    batch_size = 2
-
-    model = VanillaSeq2Seq(128, batch_size, vocab_size, 64, True, w2i["SOS"], .5, 5, 0.001)
-    for i in range(300):
-        loss, acc = model.training_iteration(batch_x, batch_y, mask_y)
-        if i % 100 == 0:
-            print("i: %d, loss: %2.4f, acc: %2.4f" % (i, loss, acc))
-
-    result = model.generation_iteration(batch_x[0])
-    word_array = []
-    for i in result:
-        word_array.append(i2w[i])
-    sentence = " ".join(word_array)
-    print("input:", input_1)
-    print("output:", sentence)
-    print()
-    result = model.generation_iteration(batch_x[1])
-    word_array = []
-    for i in result:
-        word_array.append(i2w[i])
-    sentence = " ".join(word_array)
-    print("input:", input_2)
-    print("output:", sentence)

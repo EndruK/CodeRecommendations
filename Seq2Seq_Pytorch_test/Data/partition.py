@@ -1,5 +1,4 @@
 import torch.utils.data as data
-import numpy as np
 from typing import List
 from typing import Dict
 
