@@ -51,7 +51,7 @@ class PytorchEncoder(nn.Module):
         # embedded.shape = [time, batch, embed_dim]
         embedded = embedded.permute(1,0,2)
         output, last_hidden = self.lstm(embedded, hidden)
-        return output, hidden
+        return output, last_hidden
 
     def init_hidden_state(self, batch_size):
         """
