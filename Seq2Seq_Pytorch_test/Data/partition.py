@@ -63,6 +63,7 @@ class Partition(data.Dataset):
                 result.append(self.w2i[word_token])
             else:
                 result.append(self.w2i["UNK"])
+        result.append(self.index_2_word["EOS"])
         return result
 
     def tokenize_sentence(self, sentence):
