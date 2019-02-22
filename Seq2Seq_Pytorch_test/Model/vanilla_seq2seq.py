@@ -30,6 +30,7 @@ class VanillaSeq2Seq:
         :param embedding_dimension: dimension of the embedding space
         :param cuda_enabled: Flag whether to use GPU or CPU
         :param sos_index: index in vocabulary to the start of sequence token
+        :param eos_index: index in vocabulary to the end of sequence token
         :param teacher_force_probability: probability to force a ground truth teacher decoding iteration (0.0-1.0)
             (default=0.5)
         :param gradient_clipping_limit: Clip gradients at this value to prevent gradient explosion (default=5)
@@ -50,7 +51,13 @@ class VanillaSeq2Seq:
 
         self.loss_function = nn.NLLLoss()
 
+        self.embedding = nn.Embedding(
+            num_embeddings=self.vocab_size,
+            embedding_dim=self.embedding_dimension
+        )
+
         self.encoder = Encoder(
+            embedding_layer=self.embedding,
             hidden_size=self.encoder_hidden_size,
             vocab_size=self.vocab_size,
             embedding_dimension=self.embedding_dimension,
@@ -58,6 +65,7 @@ class VanillaSeq2Seq:
         )
 
         self.decoder = Decoder(
+            embedding_layer=self.embedding,
             hidden_size=self.decoder_hidden_size,
             vocab_size=self.vocab_size,
             embedding_dimension=self.embedding_dimension,
@@ -274,11 +282,12 @@ class VanillaSeq2Seq:
 
 class Encoder(nn.Module):
 
-    def __init__(self, hidden_size, vocab_size, embedding_dimension, cuda_enabled):
+    def __init__(self, embedding_layer, hidden_size, vocab_size, embedding_dimension, cuda_enabled):
         """
         Initialize the Seq2Seq Encoder.
         NOTE: this module takes the complete input sequence and generates an intermediate representation for it.
 
+        :param embedding_layer: shared embedding layer
         :param hidden_size: the dimension of the hidden state
         :param vocab_size: how many classes are in the vocabulary
         :param embedding_dimension: dimension of the embedding space
@@ -291,10 +300,11 @@ class Encoder(nn.Module):
         self.vocab_size = vocab_size
         self.embedding_dimension = embedding_dimension
 
-        self.embedding = nn.Embedding(
-            num_embeddings=self.vocab_size,
-            embedding_dim=self.embedding_dimension
-        )
+        # self.embedding = nn.Embedding(
+        #     num_embeddings=self.vocab_size,
+        #     embedding_dim=self.embedding_dimension
+        # )
+        self.embedding = embedding_layer
         self.lstm = nn.LSTM(
             input_size=self.embedding_dimension,
             hidden_size=self.hidden_size,
@@ -340,12 +350,13 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, hidden_size, vocab_size, embedding_dimension, cuda_enabled):
+    def __init__(self, embedding_layer, hidden_size, vocab_size, embedding_dimension, cuda_enabled):
         """
         Initialize the Seq2Seq Decoder.
         NOTE: this module takes only one time step at a time and tries to generate the next token.
         Handle the sequence generation in the complete model iteration
 
+        :param embedding_layer: shared embedding layer
         :param hidden_size: size of the hidden dimension
         :param vocab_size: amount of target classes (words in vocabulary)
         :param embedding_dimension: size of the embedding space
@@ -360,10 +371,11 @@ class Decoder(nn.Module):
         self.cuda_enabled = cuda_enabled
 
         # init layers
-        self.embedding = nn.Embedding(
-            num_embeddings=self.vocab_size,
-            embedding_dim=self.embedding_dimension
-        )
+        # self.embedding = nn.Embedding(
+        #     num_embeddings=self.vocab_size,
+        #     embedding_dim=self.embedding_dimension
+        # )
+        self.embedding = embedding_layer
         self.lstm = nn.LSTM(
             input_size=self.embedding_dimension,
             hidden_size=hidden_size,
