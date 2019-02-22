@@ -81,7 +81,7 @@ class Partition(data.Dataset):
         :param x: input sequence
         :return: index array in a 1 batch
         """
-        x = self.tokenize_sentence(x)
+        x = self.tokenize_sentence(x) + [self.w2i["EOS"]]
         x = self.word_sequence_to_index_sequence(x)
         return x
 
