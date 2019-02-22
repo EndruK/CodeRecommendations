@@ -63,7 +63,6 @@ class Partition(data.Dataset):
                 result.append(self.w2i[word_token])
             else:
                 result.append(self.w2i["UNK"])
-        result.append(self.w2i["EOS"])
         return result
 
     def tokenize_sentence(self, sentence):
@@ -104,8 +103,8 @@ class Partition(data.Dataset):
         # get the longest length of the current batch for x and y
         for i in range(len(batch)):
             x, y = batch[i]
-            x = self.tokenize_sentence(x)
-            y = self.tokenize_sentence(y)
+            x = self.tokenize_sentence(x) + [self.w2i["EOS"]]
+            y = self.tokenize_sentence(y) + [self.w2i["EOS"]]
             if len(x) > l_x:
                 l_x = len(x)
                 i_x = i
