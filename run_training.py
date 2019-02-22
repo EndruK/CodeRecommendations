@@ -166,6 +166,18 @@ if __name__ == "__main__":
                 mean_loss = 0
                 mean_acc = 0
                 time_array = []
+
+                rnd_index = random.randint(0, len(dataset.partitions["training"]))
+                rnd_x, rnd_y = dataset.partitions["training"][rnd_index]
+                rnd_x_indices = dataset.partitions["training"].collate_single(rnd_x)
+                rnd_result = model.generation_iteration(rnd_x_indices)
+                result_string = "".join(dataset.index_array_to_text(rnd_result))
+                log_str = "[training]\t[example generation]\n"
+                # log_str += "[x]: %s\n" % rnd_x
+                # log_str += "[target]: %s\n" % rnd_y
+                log_str += "[result]: %s\n" % result_string
+                log.info(log_str)
+
             if global_step % validate_every_batch == 0 and global_step > 0:
                 log.info("[validation]\t[start]")
                 validation_cnt += 1
