@@ -280,7 +280,7 @@ class Dataset:
                 result.append(self.word_2_index[token])
             else:
                 result.append(self.word_2_index["UNK"])
-        result = result + [self.index_2_word["EOS"]]
+        result = result + [self.word_2_index["EOS"]]
         return result
 
     def index_array_to_text(self, index_array):
