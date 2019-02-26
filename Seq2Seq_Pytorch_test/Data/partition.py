@@ -35,6 +35,7 @@ class Partition(data.Dataset):
     def __getitem__(self, item):
         """
         Get an item out of the partition.
+        Sentences are still words (JSON format).
 
         :param item: index to the desired tuple
         :return: tuple of x and y (tokenized sentences)
@@ -136,6 +137,14 @@ class Partition(data.Dataset):
         return resulting_batch
 
     def collate3(self, batch):
+        """
+        Call this function using the pytorch DataLoader
+        https://pytorch.org/tutorials/beginner/chatbot_tutorial.html
+
+        :param batch: result of __getitem__ inside of an array with the size of the batch
+        :return: what each iteration of dataloader should return
+                 in this case: padded x index sequences
+        """
         indices = []
         for x, y in batch:
             x_tokens = self.tokenize_sentence(x) + ["EOS"]
@@ -146,13 +155,16 @@ class Partition(data.Dataset):
         sorted_batch = sorted(indices, key=lambda k: len(k[0]), reverse=True)
         x = [b[0] for b in sorted_batch]
         y = [b[1] for b in sorted_batch]
-        x_padded = rnn.pad_sequence(x, batch_first=True)
-        y_padded = rnn.pad_sequence(y, batch_first=True)
-        x_lengths = torch.LongTensor([len(element) for element in x])
-        y_lengths = torch.LongTensor([len(element) for element in y])
-        # y_mask = np.zeros(y_padded.shape)
-        # for i in range(len(y_padded)):
-        #     y_mask[i, :y_lengths[i]] = 1.0
-        #mask = torch.LongTensor(mask)
-        return x_padded, x_lengths, y_padded, y_lengths
+        max_target_len = max([len(el) for el in y])
+        x_padded = rnn.pad_sequence(x, batch_first=True, padding_value=self.w2i["PAD"])
+        y_padded = rnn.pad_sequence(y, batch_first=True, padding_value=self.w2i["PAD"])
+        x_lengths = torch.Tensor([len(element) for element in x])
+        y_lengths = [len(element) for element in y]
+        y_mask = np.zeros(shape=y_padded.shape)
+        for i in range(len(batch)):
+            y_mask[i, :y_lengths[i]] = 1.0
+        y_mask = torch.ByteTensor(y_mask.transpose(1, 0))
+        x_padded = x_padded.transpose(1, 0)  # transpose from [batch, time] to [time, batch]
+        y_padded = y_padded.transpose(1, 0)  # same for y
+        return x_padded, x_lengths, y_padded, y_mask, max_target_len
 

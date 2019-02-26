@@ -62,13 +62,14 @@ if __name__ == "__main__":
 
     # TODO: parameterize this
     hidden_size = 128
-    batch_size = 1
+    batch_size = 8
     vocab_size = len(dataset.vocab)
     embedding_dimension = 64
     cuda_enabled = True
     epochs = 50
     validate_every_batch = 2000
     print_every_batch = 100
+    #print_every_batch = 1
     model_save_path = os.path.join(args.vocab_export_path, "model")
     if not os.path.isdir(model_save_path):
         os.makedirs(model_save_path)
@@ -100,13 +101,11 @@ if __name__ == "__main__":
                                          shuffle=shuffle_data_loader,
                                          num_workers=num_workers,
                                          collate_fn=dataset.partitions["training"].collate3)
-    # TODO new collate!
     validation_generator = data.DataLoader(dataset.partitions["validation"],
                                            batch_size=batch_size,
                                            shuffle=shuffle_data_loader,
                                            num_workers=num_workers,
                                            collate_fn=dataset.partitions["validation"].collate3)
-    # TODO new collate!
     testing_generator = data.DataLoader(dataset.partitions["testing"],
                                         batch_size=batch_size,
                                         shuffle=shuffle_data_loader,
@@ -129,19 +128,19 @@ if __name__ == "__main__":
     for i in range(epochs):
         b_cnt = 0
         # iterate over all items in training and bundle mini_batches in random order
-        for x,y,m in training_generator:
+        for batch in training_generator:
             start_batch = time.time()
-            if len(x) != batch_size:
+            if len(batch[0][0]) != batch_size:
                 log_msg = "[training]\tbatch is of wrong size - skipping! "
-                log_msg += "(expected: %d - got: %d)" % (batch_size, len(x))
+                log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
                 log.warning(log_msg)
                 continue
             try:
-                loss, acc = model.training_iteration(x,y,m)
+                loss, acc = model.training_iteration(batch)
             except Exception as e:
                 log.error("There was an error during training!")
-                _x = np.array(x.tolist())
-                _y = np.array(y.tolist())
+                _x = np.array(batch[0].tolist())
+                _y = np.array(batch[2].tolist())
                 log.debug("x_len: %d" % len(_x))
                 log.debug("y_len: %d" % len(_y))
                 log.error(str(e))
@@ -169,7 +168,7 @@ if __name__ == "__main__":
                 mean_acc = 0
                 time_array = []
 
-                rnd_index = random.randint(0, len(dataset.partitions["training"]))
+                rnd_index = random.randint(0, len(dataset.partitions["training"])-1)
                 rnd_x, rnd_y = dataset.partitions["training"][rnd_index]
                 rnd_x_indices = dataset.partitions["training"].collate_single(rnd_x)
                 rnd_result = model.generation_iteration(rnd_x_indices)
@@ -190,16 +189,16 @@ if __name__ == "__main__":
                 complete_validation_acc = 0
                 valid_time_array = []
                 valid_start_time = time.time()
-                for x,y,m in validation_generator:
+                for batch in validation_generator:
                     valid_iteration_start = time.time()
                     # NOTE: unexpected batch sizes have to be skipped!
-                    if len(x) != batch_size:
+                    if len(batch[0][0]) != batch_size:
                         log_msg = "[validation]\tbatch is of wrong size - skipping! "
-                        log_msg += "(expected: %d - got: %d)" % (batch_size, len(x))
+                        log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
                         log.warning(log_msg)
                         continue
                     try:
-                        loss, acc = model.validation_iteration(x,y,m)
+                        loss, acc = model.validation_iteration(batch)
                     except Exception as e:
                         log.error("there was an error during validation!")
                         raise e
@@ -261,14 +260,14 @@ if __name__ == "__main__":
 
     model.load(path=model_save_path, name="best.checkpoint")
 
-    for x,y,m in testing_generator:
+    for batch in testing_generator:
         _s = time.time()
-        if len(x) != batch_size:
+        if len(batch[0][0]) != batch_size:
             log_msg = "[testing]\tbatch is of wrong size - skipping! "
-            log_msg += "(expected: %d - got: %d)" % (batch_size, len(x))
+            log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
             log.warning(log_msg)
             continue
-        loss, acc = model.validation_iteration(x,y,m)
+        loss, acc = model.validation_iteration(batch)
         _e = time.time()
         test_time_array.append(_e-_s)
         test_loss.append(loss)
