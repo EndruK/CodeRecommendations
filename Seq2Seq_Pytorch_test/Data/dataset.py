@@ -13,7 +13,7 @@ import pickle as pkl
 
 class Dataset:
 
-    SPECIAL_TOKENS = ["UNK", "PAD", "EMPTY", "INV", "SOS", "EOS"]
+    SPECIAL_TOKENS = ["PAD", "UNK", "EMPTY", "INV", "SOS", "EOS"]
 
     def __init__(self, dataset_path, tokenizer):
         """

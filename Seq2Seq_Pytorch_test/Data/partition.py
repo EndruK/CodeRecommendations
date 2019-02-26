@@ -1,6 +1,9 @@
 import torch.utils.data as data
+import torch.nn.utils.rnn as rnn
 from typing import List
 from typing import Dict
+import torch
+import numpy as np
 
 
 class Partition(data.Dataset):
@@ -131,3 +134,25 @@ class Partition(data.Dataset):
                                     self.word_sequence_to_index_sequence(y),
                                     mask])
         return resulting_batch
+
+    def collate3(self, batch):
+        indices = []
+        for x, y in batch:
+            x_tokens = self.tokenize_sentence(x) + ["EOS"]
+            y_tokens = self.tokenize_sentence(y) + ["EOS"]
+            x_indices = torch.LongTensor(self.word_sequence_to_index_sequence(x_tokens))
+            y_indices = torch.LongTensor(self.word_sequence_to_index_sequence(y_tokens))
+            indices.append([x_indices, y_indices])
+        sorted_batch = sorted(indices, key=lambda k: len(k[0]), reverse=True)
+        x = [b[0] for b in sorted_batch]
+        y = [b[1] for b in sorted_batch]
+        x_padded = rnn.pad_sequence(x, batch_first=True)
+        y_padded = rnn.pad_sequence(y, batch_first=True)
+        x_lengths = torch.LongTensor([len(element) for element in x])
+        y_lengths = torch.LongTensor([len(element) for element in y])
+        # y_mask = np.zeros(y_padded.shape)
+        # for i in range(len(y_padded)):
+        #     y_mask[i, :y_lengths[i]] = 1.0
+        #mask = torch.LongTensor(mask)
+        return x_padded, x_lengths, y_padded, y_lengths
+
