@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     # TODO: parameterize this
     hidden_size = 128
-    batch_size = 8
+    batch_size = 4
     vocab_size = len(dataset.vocab)
     embedding_dimension = 64
     cuda_enabled = True
