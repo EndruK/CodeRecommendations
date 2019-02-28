@@ -38,7 +38,7 @@ class VanillaSeq2Seq:
         """
         # model parameter
         self.encoder_hidden_size = hidden_size
-        self.decoder_hidden_size = 2 * self.encoder_hidden_size
+        self.decoder_hidden_size = hidden_size
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.embedding_dimension = embedding_dimension
@@ -111,13 +111,15 @@ class VanillaSeq2Seq:
 
         self.encoder.zero_grad()
         self.decoder.zero_grad()
-        hidden = self.encoder.init_hidden_state(self.batch_size)
-        encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths, hidden)
-        decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-        decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-        decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-        decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-        decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
+        # hidden = self.encoder.init_hidden_state(self.batch_size)
+        encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
+        # decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
+        # decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
+        # decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
+        # decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
+        # decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
+        decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
+
         decoder_input = [[self.sos_index for _ in range(self.batch_size)]]
         if self.cuda_enabled:
             decoder_input = torch.cuda.LongTensor(decoder_input)
@@ -283,13 +285,14 @@ class VanillaSeq2Seq:
             if self.cuda_enabled:
                 x = x.cuda()
                 x_lengths = x_lengths.cuda()
-            hidden = self.encoder.init_hidden_state(1)
-            encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths, hidden)
-            decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-            decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-            decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-            decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-            decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
+            #hidden = self.encoder.init_hidden_state(1)
+            encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
+            # decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
+            # decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
+            # decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
+            # decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
+            # decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
+            decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
             decoder_input = [[self.sos_index]]
             if self.cuda_enabled:
                 decoder_input = torch.cuda.LongTensor(decoder_input)
@@ -354,15 +357,18 @@ class Encoder(nn.Module):
         """
         super(Encoder, self).__init__()
 
+        self.n_layers = 2
+
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
 
         self.embedding_dimension = embedding_dimension
 
         self.embedding = embedding_layer
-        self.lstm = nn.LSTM(
+        self.gru = nn.GRU(
             input_size=self.embedding_dimension,
             hidden_size=self.hidden_size,
+            num_layers=self.n_layers,
             bidirectional=True
         )
         self.cuda_enabled = cuda_enabled
@@ -383,7 +389,7 @@ class Encoder(nn.Module):
         # pack sequence
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, x_lengths)
 
-        output, last_hidden_state = self.lstm(packed, hidden)
+        output, last_hidden_state = self.gru(packed, hidden)
 
         # unpack sequence
         output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
@@ -392,23 +398,23 @@ class Encoder(nn.Module):
 
         return output, last_hidden_state
 
-    def init_hidden_state(self, batch_size):
-        """
-        Initialize a hidden state for the LSTM unit.
-        LSTM state = (h, c)
-        h = hidden_part = (num_layers * num_directions, batch, hidden_size)
-        c = hidden_part = (num_layers * num_directions, batch, hidden_size)
-
-        :param batch_size: we have to know how many elements there are in a batch
-        :return: state tuple containing (h, c)
-        """
-        # LSTM expects hidden to be a tuple=(h, c) : h and c = (num_layers * num_directions, batch, hidden_size)
-        h = Variable(torch.zeros(2, batch_size, self.hidden_size))
-        c = Variable(torch.zeros(2, batch_size, self.hidden_size))
-        if self.cuda_enabled:
-            h = h.cuda()
-            c = c.cuda()
-        return h, c
+    # def init_hidden_state(self, batch_size):
+    #     """
+    #     Initialize a hidden state for the LSTM unit.
+    #     LSTM state = (h, c)
+    #     h = hidden_part = (num_layers * num_directions, batch, hidden_size)
+    #     c = hidden_part = (num_layers * num_directions, batch, hidden_size)
+    #
+    #     :param batch_size: we have to know how many elements there are in a batch
+    #     :return: state tuple containing (h, c)
+    #     """
+    #     # LSTM expects hidden to be a tuple=(h, c) : h and c = (num_layers * num_directions, batch, hidden_size)
+    #     h = Variable(torch.zeros(2, batch_size, self.hidden_size))
+    #     c = Variable(torch.zeros(2, batch_size, self.hidden_size))
+    #     if self.cuda_enabled:
+    #         h = h.cuda()
+    #         c = c.cuda()
+    #     return h, c
 
 
 class Decoder(nn.Module):
@@ -433,15 +439,18 @@ class Decoder(nn.Module):
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
 
+        self.n_layer = 2
+
         # init layers
         # self.embedding = nn.Embedding(
         #     num_embeddings=self.vocab_size,
         #     embedding_dim=self.embedding_dimension
         # )
         self.embedding = embedding_layer
-        self.lstm = nn.LSTM(
+        self.gru = nn.GRU(
             input_size=self.embedding_dimension,
             hidden_size=hidden_size,
+            num_layers=self.n_layer,
             bidirectional=False
         )
         self.projection = nn.Linear(

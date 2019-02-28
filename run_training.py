@@ -2,6 +2,7 @@ import logging as log
 from Helper.logging import init_logging
 from Seq2Seq_Pytorch_test.Data.dataset import Dataset
 from Seq2Seq_Pytorch_test.Model.vanilla_seq2seq import VanillaSeq2Seq
+from Seq2Seq_Pytorch_test.Model.attention_seq2seq import AttentionSeq2Seq
 import argparse
 import torch.utils.data as data
 import time
@@ -62,14 +63,14 @@ if __name__ == "__main__":
 
     # TODO: parameterize this
     hidden_size = 128
-    batch_size = 4
+    batch_size = 2
     vocab_size = len(dataset.vocab)
     embedding_dimension = 64
     cuda_enabled = True
     epochs = 50
     validate_every_batch = 2000
-    print_every_batch = 100
-    #print_every_batch = 1
+    #print_every_batch = 100
+    print_every_batch = 1
     model_save_path = os.path.join(args.vocab_export_path, "model")
     if not os.path.isdir(model_save_path):
         os.makedirs(model_save_path)
@@ -83,15 +84,27 @@ if __name__ == "__main__":
     configure(tensorboard_log_dir)
 
     # build pytorch model
-    model = VanillaSeq2Seq(
+    # model = VanillaSeq2Seq(
+    #     hidden_size=hidden_size,
+    #     batch_size=batch_size,
+    #     vocab_size=vocab_size,
+    #     embedding_dimension=embedding_dimension,
+    #     cuda_enabled=cuda_enabled,
+    #     sos_index=dataset.word_2_index["SOS"],
+    #     eos_index=dataset.word_2_index["EOS"]
+    # )
+
+    model = AttentionSeq2Seq(
         hidden_size=hidden_size,
         batch_size=batch_size,
         vocab_size=vocab_size,
         embedding_dimension=embedding_dimension,
         cuda_enabled=cuda_enabled,
         sos_index=dataset.word_2_index["SOS"],
-        eos_index=dataset.word_2_index["EOS"]
+        eos_index=dataset.word_2_index["EOS"],
+        attention_mode="dot"
     )
+
 
     shuffle_data_loader = True
     num_workers = 6

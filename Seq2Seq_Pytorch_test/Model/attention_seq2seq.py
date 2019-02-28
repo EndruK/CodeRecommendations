@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
 from torch import optim
 from Seq2Seq_Pytorch_test.Model.vanilla_seq2seq import VanillaSeq2Seq
@@ -14,6 +13,7 @@ class AttentionSeq2Seq(VanillaSeq2Seq):
                  cuda_enabled,
                  sos_index,
                  eos_index,
+                 attention_mode,
                  teacher_force_probability=0.5,
                  gradient_clipping_limit=5,
                  learning_rate=0.001):
@@ -28,43 +28,19 @@ class AttentionSeq2Seq(VanillaSeq2Seq):
             teacher_force_probability,
             gradient_clipping_limit,
             learning_rate)
-        self.decoder = Decoder()
+        self.attention_mode = attention_mode
+        self.decoder = Decoder(
+            self.attention_mode,
+            self.embedding,
+            self.decoder_hidden_size,
+            self.vocab_size,
+            self.embedding_dimension,
+            self.cuda_enabled
+        )
         if self.cuda_enabled:
             self.decoder = self.decoder.cuda()
         self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=self.learning_rate)
 
-    def model_iteration(self, batch, teacher_force=False):
-        x, x_lengths, y, y_mask, max_target_len = batch
-        if self.cuda_enabled:
-            x = x.cuda()
-            y = y.cuda()
-            x_lengths = x_lengths.cuda()
-            y_mask = y_mask.cuda()
-        self.encoder.zero_grad()
-        self.decoder.zero_grad()
-        hidden = self.encoder.init_hidden_state(self.batch_size)
-        encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths, hidden)
-        decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-        decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-        decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-        decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-        decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
-        decoder_input = [[self.sos_index for _ in range(self.batch_size)]]
-        if self.cuda_enabled:
-            decoder_input = torch.cuda.LongTensor(decoder_input)
-        else:
-            decoder_input = torch.LongTensor(decoder_input)
-
-        loss = 0
-        print_losses = []
-        n_totals = 0
-        results = torch.Tensor(np.zeros(shape=(max_target_len, self.batch_size)))
-        if self.cuda_enabled:
-            results = results.cuda()
-        # TODO hier war ich
-
-    def generation_iteration(self, x, limit=1000):
-        pass
 
 class Decoder(nn.Module):
     def __init__(self,
@@ -81,10 +57,12 @@ class Decoder(nn.Module):
         self.embedding = embedding_layer
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
+        self.n_layers = 2
 
-        self.lstm = nn.LSTM(
+        self.gru = nn.GRU(
             input_size=self.embedding_dimension,
-            hidden_size=self.hidden_size
+            hidden_size=self.hidden_size,
+            num_layers=self.n_layers
         )
         self.concat = nn.Linear(
             in_features=self.hidden_size*2,
@@ -101,7 +79,7 @@ class Decoder(nn.Module):
 
     def forward(self, input_step, last_hidden, encoder_output):
         embedded = self.embedding(input_step)
-        lstm_output, hidden = self.lstm(embedded, last_hidden)
+        lstm_output, hidden = self.gru(embedded, last_hidden)
         attention_weights = self.attention(lstm_output, encoder_output)
         context = attention_weights.bmm(encoder_output.transpose(0, 1))
         lstm_output = lstm_output.squeeze(0)
@@ -129,7 +107,7 @@ class Attention(nn.Module):
             self.attention = nn.Linear(self.hidden_size * 2, hidden_size)
             self.v = nn.Parameter(torch.FloatTensor(hidden_size))
 
-    def dot_score(self, hidden , encoder_output):
+    def dot_score(self, hidden, encoder_output):
         return torch.sum(hidden * encoder_output, dim=2)
 
     def general_score(self, hidden, encoder_output):
