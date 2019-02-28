@@ -63,14 +63,14 @@ if __name__ == "__main__":
 
     # TODO: parameterize this
     hidden_size = 128
-    batch_size = 2
+    batch_size = 8
     vocab_size = len(dataset.vocab)
     embedding_dimension = 64
     cuda_enabled = True
     epochs = 50
     validate_every_batch = 2000
-    #print_every_batch = 100
-    print_every_batch = 1
+    print_every_batch = 100
+    #print_every_batch = 1
     model_save_path = os.path.join(args.vocab_export_path, "model")
     if not os.path.isdir(model_save_path):
         os.makedirs(model_save_path)
