@@ -84,26 +84,26 @@ if __name__ == "__main__":
     configure(tensorboard_log_dir)
 
     # build pytorch model
-    # model = VanillaSeq2Seq(
-    #     hidden_size=hidden_size,
-    #     batch_size=batch_size,
-    #     vocab_size=vocab_size,
-    #     embedding_dimension=embedding_dimension,
-    #     cuda_enabled=cuda_enabled,
-    #     sos_index=dataset.word_2_index["SOS"],
-    #     eos_index=dataset.word_2_index["EOS"]
-    # )
-
-    model = AttentionSeq2Seq(
+    model = VanillaSeq2Seq(
         hidden_size=hidden_size,
         batch_size=batch_size,
         vocab_size=vocab_size,
         embedding_dimension=embedding_dimension,
         cuda_enabled=cuda_enabled,
         sos_index=dataset.word_2_index["SOS"],
-        eos_index=dataset.word_2_index["EOS"],
-        attention_mode="dot"
+        eos_index=dataset.word_2_index["EOS"]
     )
+
+    # model = AttentionSeq2Seq(
+    #     hidden_size=hidden_size,
+    #     batch_size=batch_size,
+    #     vocab_size=vocab_size,
+    #     embedding_dimension=embedding_dimension,
+    #     cuda_enabled=cuda_enabled,
+    #     sos_index=dataset.word_2_index["SOS"],
+    #     eos_index=dataset.word_2_index["EOS"],
+    #     attention_mode="dot"
+    # )
 
 
     shuffle_data_loader = True

@@ -439,7 +439,7 @@ class Decoder(nn.Module):
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
 
-        self.n_layer = 2
+        self.n_layers = 2
 
         # init layers
         # self.embedding = nn.Embedding(
@@ -450,7 +450,7 @@ class Decoder(nn.Module):
         self.gru = nn.GRU(
             input_size=self.embedding_dimension,
             hidden_size=hidden_size,
-            num_layers=self.n_layer,
+            num_layers=self.n_layers,
             bidirectional=False
         )
         self.projection = nn.Linear(
@@ -471,7 +471,7 @@ class Decoder(nn.Module):
         # x_input shape: (batch)
         x_embedded = self.embedding(x)  # shape: (batch, embedding)
         #x_embedded = x_embedded.unsqueeze(0)  # shape: (1, batch, embedding)
-        output, hidden = self.lstm(x_embedded, hidden)
+        output, hidden = self.gru(x_embedded, hidden)
 
         output = output.squeeze(0)  # shape: (batch, hidden)
         output = self.projection(output)
