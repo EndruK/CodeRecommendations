@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 import random
@@ -38,7 +37,7 @@ class VanillaSeq2Seq:
         """
         # model parameter
         self.encoder_hidden_size = hidden_size
-        self.decoder_hidden_size = 2 * self.encoder_hidden_size
+        self.decoder_hidden_size = hidden_size
         self.batch_size = batch_size
         self.vocab_size = vocab_size
         self.embedding_dimension = embedding_dimension
@@ -53,9 +52,9 @@ class VanillaSeq2Seq:
 
         self.embedding = nn.Embedding(
             num_embeddings=self.vocab_size,
-            embedding_dim=self.embedding_dimension
+            embedding_dim=self.embedding_dimension,
+            padding_idx=0
         )
-
         self.encoder = Encoder(
             embedding_layer=self.embedding,
             hidden_size=self.encoder_hidden_size,
@@ -77,7 +76,15 @@ class VanillaSeq2Seq:
         self.encoder_optimizer = optim.Adam(self.encoder.parameters(), lr=self.learning_rate)
         self.decoder_optimizer = optim.Adam(self.decoder.parameters(), lr=self.learning_rate)
 
-    def model_iteration(self, x, y, mask, teacher_force=False):
+    def maskNLLLoss(self, inp, target, mask):
+
+        nTotal = mask.sum()
+        crossEntropy = -torch.log(torch.gather(inp, 1, target.view(-1, 1)).squeeze(1))
+        loss = crossEntropy.masked_select(mask).mean()
+        return loss, nTotal.item()
+
+
+    def model_iteration(self, batch, teacher_force=False):
         """
         The main part for a complete pass through of the model for a iteration.
 
@@ -87,81 +94,78 @@ class VanillaSeq2Seq:
         :param teacher_force: Flag to force teaching (use of the target tokens as input for decoder)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        x = Variable(torch.LongTensor(x))
-        y = Variable(torch.LongTensor(y))
+        x, x_lengths, y, y_mask, max_target_len = batch
         if self.cuda_enabled:
             x = x.cuda()
             y = y.cuda()
+            x_lengths = x_lengths.cuda()
+            y_mask = y_mask.cuda()
+
         self.encoder.zero_grad()
         self.decoder.zero_grad()
-        hidden = self.encoder.init_hidden_state(self.batch_size)
-        encoder_output, encoder_last_hidden_state = self.encoder(x, hidden)
-        decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-        decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-        decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-        decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-        decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
-        # reshape y from (batch, time) to (time, batch)
-        y = y.permute(1, 0)  # shape: (time, batch)
-        decoder_input = [self.sos_index] * self.batch_size  # shape: (batch)
+        encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
+        decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
+
+        decoder_input = [[self.sos_index for _ in range(self.batch_size)]]
         if self.cuda_enabled:
             decoder_input = torch.cuda.LongTensor(decoder_input)
         else:
             decoder_input = torch.LongTensor(decoder_input)
 
-
         loss = 0
-        acc = Variable(torch.LongTensor([[0.0] * self.batch_size] * len(y)))
+        print_losses = []
+        n_totals = 0
+        results = torch.Tensor(np.zeros(shape=(max_target_len, self.batch_size)))
         if self.cuda_enabled:
-            acc = acc.cuda()
+            results = results.cuda()
         # if we want to use ground truth for enhanced training - set teacher force=True
         if teacher_force:
             # use ground truth as input
-            for i in range(len(y)):
+            for i in range(max_target_len):
                 # use ground truth as input
                 decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_output)
                 _, top_index = decoder_output.data.topk(1)
-                acc[i] = top_index.squeeze(-1) == y[i]
-                decoder_input = y[i]
-                labels = y[i]  # shape: (batch)
-                loss += self.loss_function(decoder_output, labels)
+                decoder_input = y[i].view(1, -1)
+                results[i] = torch.LongTensor([[top_index[i][0] for i in range(self.batch_size)]])
+                mask_loss, nTotal = self.maskNLLLoss(decoder_output, y[i], y_mask[i])
+                loss += mask_loss
+                print_losses.append(mask_loss.item() * nTotal)
+                n_totals += nTotal
         else:
             # use predictions as input
-            for i in range(len(y)):
+            for i in range(max_target_len):
                 decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_output)
                 # decoder_output shape: (batch, vocab)
-                top_value, top_index = decoder_output.data.topk(1)  # top_index shape: (batch, 1)
-                acc[i] = top_index.squeeze(-1) == y[i]
-                top_index = top_index.squeeze(-1)  # shape: (batch)
+                _, top_index = decoder_output.data.topk(1)  # top_index shape: (batch, 1)
+                decoder_input = torch.LongTensor([[top_index[i][0] for i in range(self.batch_size)]])
+                results[i] = decoder_input
                 if self.cuda_enabled:
-                    decoder_input = Variable(torch.cuda.LongTensor(top_index))
                     decoder_input = decoder_input.cuda()
-                else:
-                    decoder_input = Variable(torch.LongTensor(top_index))
-                labels = y[i]
-                loss += self.loss_function(decoder_output, labels)
-        batch_loss = loss.item() / len(y)
+                mask_loss, nTotal = self.maskNLLLoss(decoder_output, y[i], y_mask[i])
+                loss += mask_loss
+                print_losses.append(mask_loss.item() * nTotal)
+                n_totals += nTotal
+        batch_loss = loss / max_target_len
 
+        ## calculate the accuracy
+        # shape results: [time, batch]
+        # shape target:  [time, batch]
+        # get the data as np arrays
         if self.cuda_enabled:
-            #batch_accuracy = np.mean(acc.cpu().numpy())
-            acc_numpy = acc.cpu().numpy()
+            results = results.cpu().numpy()
+            targets = y.cpu().numpy()
+            mask = y_mask.cpu().numpy()
         else:
-            #batch_accuracy = np.mean(acc.numpy())
-            acc_numpy = acc.numpy()
+            results = results.numpy()
+            targets = y.numpy()
+            mask = y_mask.numpy()
 
-        # we have to change the dimensions of masking from [batch, time] to [time, batch]
-        mask = np.swapaxes(mask, 1, 0)
-
-        # summarize the masking array to get the amount of unmasked elements
-        unmasked_count = np.sum(mask, axis=0)
-        # apply masking to accuracy array and summarize the correct hits
-        hit_count = np.sum((acc_numpy * mask), axis=0)
-        # get the masked accuracy for all batch elements
-        batch_accuracy = hit_count / unmasked_count
-        # get the mean accuracy for the current batch
-        mean_batch_accuracy = np.mean(batch_accuracy)
-
-        return loss, batch_loss, mean_batch_accuracy
+        hit = (results == targets).astype(int) * mask
+        hit_sum = np.sum(hit, axis=0)
+        mask_sum = np.sum(mask, axis=0)
+        accuracy = hit_sum / mask_sum
+        batch_accuracy = np.mean(accuracy)
+        return loss, batch_loss, batch_accuracy
 
     def training_iteration(self, batch):
         """
@@ -174,12 +178,9 @@ class VanillaSeq2Seq:
             len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        batch = np.array(batch)
-        x = np.array(batch[:, 0].tolist())
-        y = np.array(batch[:, 1].tolist())
-        m = np.array(batch[:, 2].tolist())
         teacher_force = random.random() < self.teacher_force_probability
-        loss, batch_loss, batch_accuracy = self.model_iteration(x, y, m, teacher_force)
+        loss, batch_loss, batch_accuracy = self.model_iteration(batch, teacher_force)
+        #loss, batch_loss = self.model_iteration(batch, teacher_force)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.encoder.parameters(), self.gradient_clipping_limit)
         torch.nn.utils.clip_grad_norm_(self.decoder.parameters(), self.gradient_clipping_limit)
@@ -198,12 +199,10 @@ class VanillaSeq2Seq:
             len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        batch = np.array(batch)
-        x = np.array(batch[:, 0].tolist())
-        y = np.array(batch[:, 1].tolist())
-        m = np.array(batch[:, 2].tolist())
+
         with torch.no_grad():
-            _, batch_loss, batch_accuracy = self.model_iteration(x, y, m, teacher_force=False)
+            _, batch_loss, batch_accuracy = self.model_iteration(batch, teacher_force=False)
+            #_, batch_loss = self.model_iteration(x, y, m, teacher_force=False)
         return batch_loss, batch_accuracy
 
     def generation_iteration(self, x, limit=1000):
@@ -216,36 +215,34 @@ class VanillaSeq2Seq:
         """
         with torch.no_grad():
             # since x should be batchless - add the dimension for the batch here
-            x = torch.LongTensor([x])
+            x_lengths = np.array(len(x))
+            x_lengths = np.expand_dims(x_lengths, axis=-1)
+            x_lengths = torch.Tensor(x_lengths)
+            x = np.array(x)
+            x = np.expand_dims(x, axis=-1)
+
+            x = torch.LongTensor(x)
             if self.cuda_enabled:
                 x = x.cuda()
-            hidden = self.encoder.init_hidden_state(1)
-            encoder_output, encoder_last_hidden_state = self.encoder(x, hidden)
-            decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-            decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-            decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-            decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-            decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
-            decoder_input = [self.sos_index]
+                x_lengths = x_lengths.cuda()
+            #hidden = self.encoder.init_hidden_state(1)
+            encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
+            decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
+            decoder_input = [[self.sos_index]]
             if self.cuda_enabled:
                 decoder_input = torch.cuda.LongTensor(decoder_input)
             else:
                 decoder_input = torch.LongTensor(decoder_input)
-            generated_index = -1
             result = []
             # NOTE: this is nearly the same procedure as the no-teacher version in model_iteration
             while True:
                 decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_output)
-                top_value, top_index = decoder_output.data.topk(1)
-                top_index = top_index.squeeze(-1)  # shape: (batch)
+                _, top_index = decoder_output.data.topk(1)
+                decoder_input = torch.LongTensor([[top_index[0][0]]])
                 if self.cuda_enabled:
-                    decoder_input = Variable(torch.cuda.LongTensor(top_index))
                     decoder_input = decoder_input.cuda()
-                else:
-                    decoder_input = Variable(torch.LongTensor(top_index))
                 generated_index = top_index.squeeze(0).data.item()  # shape: (1)
                 result.append(generated_index)
-                # TODO: change 5 to eof token index
                 if generated_index == self.eos_index or len(result) > limit:
                     break
             return result
@@ -295,24 +292,23 @@ class Encoder(nn.Module):
         """
         super(Encoder, self).__init__()
 
-        self.hidden_size = hidden_size
+        self.n_layers = 2
 
+        self.hidden_size = hidden_size
         self.vocab_size = vocab_size
+
         self.embedding_dimension = embedding_dimension
 
-        # self.embedding = nn.Embedding(
-        #     num_embeddings=self.vocab_size,
-        #     embedding_dim=self.embedding_dimension
-        # )
         self.embedding = embedding_layer
-        self.lstm = nn.LSTM(
+        self.gru = nn.GRU(
             input_size=self.embedding_dimension,
             hidden_size=self.hidden_size,
+            num_layers=self.n_layers,
             bidirectional=True
         )
         self.cuda_enabled = cuda_enabled
 
-    def forward(self, x, hidden):
+    def forward(self, x, x_lengths, hidden=None):
         """
         Forward pass for one call of this module.
         NOTE: this module processes the input sequence completely in one iteration!
@@ -321,31 +317,21 @@ class Encoder(nn.Module):
         :param hidden: the dimension of the hidden state
         :return: tuple(output, hidden) of shape: output[time, batch, hidden_size], hidden[2, 2, batch, hidden_size]
         """
-        # x shape: (batch, time)
-        # NOTE: processing full input sequence in one run
-        x_embedded = self.embedding(x)  # shape: (batch, time, embedding)
+        # embed the input sequence
+        embedded = self.embedding(x)  # shape: (batch, time, embedding)
         # LSTM expects inputs of shape (time, batch, input_size) - so permute
-        x_embedded = x_embedded.permute(1, 0, 2)  # shape: (time, batch, embedding)
-        output, last_hidden_state = self.lstm(x_embedded, hidden)
+
+        # pack sequence
+        packed = torch.nn.utils.rnn.pack_padded_sequence(embedded, x_lengths)
+
+        output, last_hidden_state = self.gru(packed, hidden)
+
+        # unpack sequence
+        output, _ = torch.nn.utils.rnn.pad_packed_sequence(output)
+        # sum bidirectional outputs
+        output = output[:, :, :self.hidden_size] + output[:, :, self.hidden_size:]
+
         return output, last_hidden_state
-
-    def init_hidden_state(self, batch_size):
-        """
-        Initialize a hidden state for the LSTM unit.
-        LSTM state = (h, c)
-        h = hidden_part = (num_layers * num_directions, batch, hidden_size)
-        c = hidden_part = (num_layers * num_directions, batch, hidden_size)
-
-        :param batch_size: we have to know how many elements there are in a batch
-        :return: state tuple containing (h, c)
-        """
-        # LSTM expects hidden to be a tuple=(h, c) : h and c = (num_layers * num_directions, batch, hidden_size)
-        h = Variable(torch.zeros(2, batch_size, self.hidden_size))
-        c = Variable(torch.zeros(2, batch_size, self.hidden_size))
-        if self.cuda_enabled:
-            h = h.cuda()
-            c = c.cuda()
-        return h, c
 
 
 class Decoder(nn.Module):
@@ -363,22 +349,17 @@ class Decoder(nn.Module):
         :param cuda_enabled: flag for using GPU for the model or not
         """
         super(Decoder, self).__init__()
-
         # init model parameter
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
-
-        # init layers
-        # self.embedding = nn.Embedding(
-        #     num_embeddings=self.vocab_size,
-        #     embedding_dim=self.embedding_dimension
-        # )
+        self.n_layers = 2
         self.embedding = embedding_layer
-        self.lstm = nn.LSTM(
+        self.gru = nn.GRU(
             input_size=self.embedding_dimension,
             hidden_size=hidden_size,
+            num_layers=self.n_layers,
             bidirectional=False
         )
         self.projection = nn.Linear(
@@ -396,11 +377,9 @@ class Decoder(nn.Module):
         :param encoder_output: complete output of the encoder - for later use (default = None)
         :return: tuple(output, hidden) of shape: output[batch, vocab], hidden[2, 1, batch, hidden_size]
         """
-        # x_input shape: (batch)
-        x_embedded = self.embedding(x)  # shape: (batch, embedding)
-        x_embedded = x_embedded.unsqueeze(0)  # shape: (1, batch, embedding)
-        output, hidden = self.lstm(x_embedded, hidden)
-
-        output = output.squeeze(0)  # shape: (batch, hidden)
-        output = F.log_softmax(self.projection(output), dim=-1)  # shape: (batch, vocab)
+        x_embedded = self.embedding(x)
+        output, hidden = self.gru(x_embedded, hidden)
+        output = output.squeeze(0)
+        output = self.projection(output)
+        output = F.softmax(output, dim=1)
         return output, hidden

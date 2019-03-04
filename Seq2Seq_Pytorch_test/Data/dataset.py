@@ -13,7 +13,7 @@ import pickle as pkl
 
 class Dataset:
 
-    SPECIAL_TOKENS = ["UNK", "PAD", "EMPTY", "INV", "SOS", "EOS"]
+    SPECIAL_TOKENS = ["PAD", "UNK", "EMPTY", "INV", "SOS", "EOS"]
 
     def __init__(self, dataset_path, tokenizer):
         """
@@ -216,6 +216,10 @@ class Dataset:
         self.partitions["training"].set_vocab_and_mapping(self.vocab, self.word_2_index)
         self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
         self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
+
+        log.debug("top 20 words in vocab: " + str(self.vocab[:20]))
+        log.debug("i2w top20: " + str([[w, i] for w, i in self.word_2_index.items() if i < 20]))
+        log.debug("w2i top20: " + str([[i, w] for i, w in self.index_2_word.items() if i < 20]))
 
     def dump_vocab(self, p, title):
         """

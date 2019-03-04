@@ -1,6 +1,9 @@
 import torch.utils.data as data
+import torch.nn.utils.rnn as rnn
 from typing import List
 from typing import Dict
+import torch
+import numpy as np
 
 
 class Partition(data.Dataset):
@@ -32,6 +35,7 @@ class Partition(data.Dataset):
     def __getitem__(self, item):
         """
         Get an item out of the partition.
+        Sentences are still words (JSON format).
 
         :param item: index to the desired tuple
         :return: tuple of x and y (tokenized sentences)
@@ -131,3 +135,44 @@ class Partition(data.Dataset):
                                     self.word_sequence_to_index_sequence(y),
                                     mask])
         return resulting_batch
+
+    def collate3(self, batch):
+        """
+        Call this function using the pytorch DataLoader
+        https://pytorch.org/tutorials/beginner/chatbot_tutorial.html
+
+        :param batch: result of __getitem__ inside of an array with the size of the batch
+        :return: what each iteration of dataloader should return
+                 in this case: padded x index sequences
+        """
+        # first, tokenize sentences and translate them to index sequences
+        indices = []
+        for x, y in batch:
+            # append EOS token
+            x_tokens = self.tokenize_sentence(x) + ["EOS"]
+            y_tokens = self.tokenize_sentence(y) + ["EOS"]
+            x_indices = torch.LongTensor(self.word_sequence_to_index_sequence(x_tokens))
+            y_indices = torch.LongTensor(self.word_sequence_to_index_sequence(y_tokens))
+            indices.append([x_indices, y_indices])
+        # sort sequences by x sequence length in descending order
+        sorted_batch = sorted(indices, key=lambda k: len(k[0]), reverse=True)
+        x = [b[0] for b in sorted_batch]
+        y = [b[1] for b in sorted_batch]
+        # get the longest y sequence length
+        max_target_len = max([len(el) for el in y])
+        # pad input and output to longest sequence
+        x_padded = rnn.pad_sequence(x, batch_first=True, padding_value=self.w2i["PAD"])
+        y_padded = rnn.pad_sequence(y, batch_first=True, padding_value=self.w2i["PAD"])
+        # put the input and output lengths into tensors
+        x_lengths = torch.Tensor([len(element) for element in x])
+        y_lengths = [len(element) for element in y]
+        # create a masking matrix for output sequence
+        y_mask = np.zeros(shape=y_padded.shape)
+        for i in range(len(batch)):
+            y_mask[i, :y_lengths[i]] = 1.0
+        # transpose all tensors (from [batch, time] to [time, batch])
+        y_mask = torch.ByteTensor(y_mask.transpose(1, 0))
+        x_padded = x_padded.transpose(1, 0)
+        y_padded = y_padded.transpose(1, 0)
+        return x_padded, x_lengths, y_padded, y_mask, max_target_len
+

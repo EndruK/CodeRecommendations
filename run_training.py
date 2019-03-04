@@ -2,6 +2,7 @@ import logging as log
 from Helper.logging import init_logging
 from Seq2Seq_Pytorch_test.Data.dataset import Dataset
 from Seq2Seq_Pytorch_test.Model.vanilla_seq2seq import VanillaSeq2Seq
+from Seq2Seq_Pytorch_test.Model.attention_seq2seq import AttentionSeq2Seq
 import argparse
 import torch.utils.data as data
 import time
@@ -14,20 +15,43 @@ import random
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("command line arguments")
-    parser.add_argument("csv_path", type=str, help="Path to the CSV holding all tuples")
-    parser.add_argument("tokenizer", type=str, help="tokenizer to use on training (nltk, json)")
-
-    parser.add_argument("vocab_top_k", type=int, help="Amount of top k words to keep in vocab")
-    parser.add_argument("vocab_build_processes", type=int, help="num of parallel processes for vocab creation")
-
-    parser.add_argument("vocab_export_path", type=str, help="Path to dump the extracted vocab to")
-    parser.add_argument("vocab_name", type=str, help="name of the resulting vocab files")
-
-    parser.add_argument("log_level", type=str, help="Define the log level (debug, info, warn, critical)")
-    parser.add_argument("log_path", type=str, help="Define the path to store the log file to")
-
-    parser.add_argument("-g", "--gpu_ids", nargs='+', help="Set list of GPUs (default=0)", default=['0'])
-
+    parser.add_argument("csv_path",
+                        type=str,
+                        help="Path to the CSV holding all tuples")
+    parser.add_argument("tokenizer",
+                        type=str,
+                        help="tokenizer to use on training (nltk, json)")
+    parser.add_argument("vocab_top_k",
+                        type=int,
+                        help="Amount of top k words to keep in vocab")
+    parser.add_argument("vocab_build_processes",
+                        type=int,
+                        help="num of parallel processes for vocab creation")
+    parser.add_argument("vocab_export_path",
+                        type=str,
+                        help="Path to dump the extracted vocab to")
+    parser.add_argument("vocab_name",
+                        type=str,
+                        help="name of the resulting vocab files")
+    parser.add_argument("log_level",
+                        type=str,
+                        help="Define the log level (debug, info, warn, critical)")
+    parser.add_argument("log_path",
+                        type=str,
+                        help="Define the path to store the log file to")
+    parser.add_argument("-g",
+                        "--gpu_ids",
+                        nargs='+',
+                        help="Set list of GPUs (default=0)",
+                        default=['0'])
+    parser.add_argument("-m",
+                        "--model",
+                        type=str,
+                        help="specify the model which should be used (vanilla|attention)",
+                        required=True)
+    parser.add_argument("--attention_type",
+                        type=str,
+                        help="define the attention type (general|dot|concat) (only with attention models)")
     args = parser.parse_args()
     csv_path = args.csv_path
     tokenizer = args.tokenizer
@@ -37,6 +61,10 @@ if __name__ == "__main__":
 
     vocab_path = args.vocab_export_path
     vocab_name = args.vocab_name
+
+    model_version = args.model
+    if model_version not in ["vanilla", "attention"]:
+        raise ValueError("model version not defined! got: " + model_version)
 
     log_level = args.log_level
     log_path = args.log_path
@@ -62,13 +90,14 @@ if __name__ == "__main__":
 
     # TODO: parameterize this
     hidden_size = 128
-    batch_size = 4
+    batch_size = 8
     vocab_size = len(dataset.vocab)
     embedding_dimension = 64
     cuda_enabled = True
     epochs = 50
     validate_every_batch = 2000
     print_every_batch = 100
+    #print_every_batch = 1
     model_save_path = os.path.join(args.vocab_export_path, "model")
     if not os.path.isdir(model_save_path):
         os.makedirs(model_save_path)
@@ -82,15 +111,31 @@ if __name__ == "__main__":
     configure(tensorboard_log_dir)
 
     # build pytorch model
-    model = VanillaSeq2Seq(
-        hidden_size=hidden_size,
-        batch_size=batch_size,
-        vocab_size=vocab_size,
-        embedding_dimension=embedding_dimension,
-        cuda_enabled=cuda_enabled,
-        sos_index=dataset.word_2_index["SOS"],
-        eos_index=dataset.word_2_index["EOS"]
-    )
+    if model_version == "vanilla":
+        model = VanillaSeq2Seq(
+            hidden_size=hidden_size,
+            batch_size=batch_size,
+            vocab_size=vocab_size,
+            embedding_dimension=embedding_dimension,
+            cuda_enabled=cuda_enabled,
+            sos_index=dataset.word_2_index["SOS"],
+            eos_index=dataset.word_2_index["EOS"]
+        )
+    elif model_version == "attention":
+        attention_type = args.attention_type
+        if attention_type not in ["dot", "general", "concat"]:
+            raise ValueError("unknown attention type defined! got: " + attention_type)
+        model = AttentionSeq2Seq(
+            hidden_size=hidden_size,
+            batch_size=batch_size,
+            vocab_size=vocab_size,
+            embedding_dimension=embedding_dimension,
+            cuda_enabled=cuda_enabled,
+            sos_index=dataset.word_2_index["SOS"],
+            eos_index=dataset.word_2_index["EOS"],
+            attention_mode=attention_type
+        )
+
 
     shuffle_data_loader = True
     num_workers = 6
@@ -99,17 +144,17 @@ if __name__ == "__main__":
                                          batch_size=batch_size,
                                          shuffle=shuffle_data_loader,
                                          num_workers=num_workers,
-                                         collate_fn=dataset.partitions["training"].collate)
+                                         collate_fn=dataset.partitions["training"].collate3)
     validation_generator = data.DataLoader(dataset.partitions["validation"],
                                            batch_size=batch_size,
                                            shuffle=shuffle_data_loader,
                                            num_workers=num_workers,
-                                           collate_fn=dataset.partitions["validation"].collate)
+                                           collate_fn=dataset.partitions["validation"].collate3)
     testing_generator = data.DataLoader(dataset.partitions["testing"],
                                         batch_size=batch_size,
                                         shuffle=shuffle_data_loader,
                                         num_workers=num_workers,
-                                        collate_fn=dataset.partitions["testing"].collate)
+                                        collate_fn=dataset.partitions["testing"].collate3)
     global_step = 0
     mean_loss = 0
     mean_acc = 0
@@ -129,17 +174,17 @@ if __name__ == "__main__":
         # iterate over all items in training and bundle mini_batches in random order
         for batch in training_generator:
             start_batch = time.time()
-            if len(batch) != batch_size:
+            if len(batch[0][0]) != batch_size:
                 log_msg = "[training]\tbatch is of wrong size - skipping! "
-                log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch))
+                log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
                 log.warning(log_msg)
                 continue
             try:
                 loss, acc = model.training_iteration(batch)
             except Exception as e:
                 log.error("There was an error during training!")
-                _x = np.array(batch[:, 0].tolist())
-                _y = np.array(batch[:, 1].tolist())
+                _x = np.array(batch[0].tolist())
+                _y = np.array(batch[2].tolist())
                 log.debug("x_len: %d" % len(_x))
                 log.debug("y_len: %d" % len(_y))
                 log.error(str(e))
@@ -167,7 +212,7 @@ if __name__ == "__main__":
                 mean_acc = 0
                 time_array = []
 
-                rnd_index = random.randint(0, len(dataset.partitions["training"]))
+                rnd_index = random.randint(0, len(dataset.partitions["training"])-1)
                 rnd_x, rnd_y = dataset.partitions["training"][rnd_index]
                 rnd_x_indices = dataset.partitions["training"].collate_single(rnd_x)
                 rnd_result = model.generation_iteration(rnd_x_indices)
@@ -188,19 +233,18 @@ if __name__ == "__main__":
                 complete_validation_acc = 0
                 valid_time_array = []
                 valid_start_time = time.time()
-                for valid_batch in validation_generator:
+                for batch in validation_generator:
                     valid_iteration_start = time.time()
                     # NOTE: unexpected batch sizes have to be skipped!
-                    if len(valid_batch) != batch_size:
+                    if len(batch[0][0]) != batch_size:
                         log_msg = "[validation]\tbatch is of wrong size - skipping! "
-                        log_msg += "(expected: %d - got: %d)" % (batch_size, len(valid_batch))
+                        log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
                         log.warning(log_msg)
                         continue
                     try:
-                        loss, acc = model.validation_iteration(valid_batch)
+                        loss, acc = model.validation_iteration(batch)
                     except Exception as e:
                         log.error("there was an error during validation!")
-                        log.debug("valid batch:", valid_batch)
                         raise e
                     valid_iteration_end = time.time()
                     valid_time_array.append(valid_iteration_end-valid_iteration_start)
@@ -257,14 +301,12 @@ if __name__ == "__main__":
     test_cnt = 0
     test_start = time.time()
     test_time_array = []
-
     model.load(path=model_save_path, name="best.checkpoint")
-
     for batch in testing_generator:
         _s = time.time()
-        if len(batch) != batch_size:
+        if len(batch[0][0]) != batch_size:
             log_msg = "[testing]\tbatch is of wrong size - skipping! "
-            log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch))
+            log_msg += "(expected: %d - got: %d)" % (batch_size, len(batch[0][0]))
             log.warning(log_msg)
             continue
         loss, acc = model.validation_iteration(batch)
