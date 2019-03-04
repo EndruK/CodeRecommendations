@@ -15,20 +15,43 @@ import random
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("command line arguments")
-    parser.add_argument("csv_path", type=str, help="Path to the CSV holding all tuples")
-    parser.add_argument("tokenizer", type=str, help="tokenizer to use on training (nltk, json)")
-
-    parser.add_argument("vocab_top_k", type=int, help="Amount of top k words to keep in vocab")
-    parser.add_argument("vocab_build_processes", type=int, help="num of parallel processes for vocab creation")
-
-    parser.add_argument("vocab_export_path", type=str, help="Path to dump the extracted vocab to")
-    parser.add_argument("vocab_name", type=str, help="name of the resulting vocab files")
-
-    parser.add_argument("log_level", type=str, help="Define the log level (debug, info, warn, critical)")
-    parser.add_argument("log_path", type=str, help="Define the path to store the log file to")
-
-    parser.add_argument("-g", "--gpu_ids", nargs='+', help="Set list of GPUs (default=0)", default=['0'])
-
+    parser.add_argument("csv_path",
+                        type=str,
+                        help="Path to the CSV holding all tuples")
+    parser.add_argument("tokenizer",
+                        type=str,
+                        help="tokenizer to use on training (nltk, json)")
+    parser.add_argument("vocab_top_k",
+                        type=int,
+                        help="Amount of top k words to keep in vocab")
+    parser.add_argument("vocab_build_processes",
+                        type=int,
+                        help="num of parallel processes for vocab creation")
+    parser.add_argument("vocab_export_path",
+                        type=str,
+                        help="Path to dump the extracted vocab to")
+    parser.add_argument("vocab_name",
+                        type=str,
+                        help="name of the resulting vocab files")
+    parser.add_argument("log_level",
+                        type=str,
+                        help="Define the log level (debug, info, warn, critical)")
+    parser.add_argument("log_path",
+                        type=str,
+                        help="Define the path to store the log file to")
+    parser.add_argument("-g",
+                        "--gpu_ids",
+                        nargs='+',
+                        help="Set list of GPUs (default=0)",
+                        default=['0'])
+    parser.add_argument("-m",
+                        "--model",
+                        type=str,
+                        help="specify the model which should be used (vanilla|attention)",
+                        required=True)
+    parser.add_argument("--attention_type",
+                        type=str,
+                        help="define the attention type (general|dot|concat) (only with attention models)")
     args = parser.parse_args()
     csv_path = args.csv_path
     tokenizer = args.tokenizer
@@ -38,6 +61,10 @@ if __name__ == "__main__":
 
     vocab_path = args.vocab_export_path
     vocab_name = args.vocab_name
+
+    model_version = args.model
+    if model_version not in ["vanilla", "attention"]:
+        raise ValueError("model version not defined! got: " + model_version)
 
     log_level = args.log_level
     log_path = args.log_path
@@ -84,26 +111,30 @@ if __name__ == "__main__":
     configure(tensorboard_log_dir)
 
     # build pytorch model
-    model = VanillaSeq2Seq(
-        hidden_size=hidden_size,
-        batch_size=batch_size,
-        vocab_size=vocab_size,
-        embedding_dimension=embedding_dimension,
-        cuda_enabled=cuda_enabled,
-        sos_index=dataset.word_2_index["SOS"],
-        eos_index=dataset.word_2_index["EOS"]
-    )
-
-    # model = AttentionSeq2Seq(
-    #     hidden_size=hidden_size,
-    #     batch_size=batch_size,
-    #     vocab_size=vocab_size,
-    #     embedding_dimension=embedding_dimension,
-    #     cuda_enabled=cuda_enabled,
-    #     sos_index=dataset.word_2_index["SOS"],
-    #     eos_index=dataset.word_2_index["EOS"],
-    #     attention_mode="dot"
-    # )
+    if model_version == "vanilla":
+        model = VanillaSeq2Seq(
+            hidden_size=hidden_size,
+            batch_size=batch_size,
+            vocab_size=vocab_size,
+            embedding_dimension=embedding_dimension,
+            cuda_enabled=cuda_enabled,
+            sos_index=dataset.word_2_index["SOS"],
+            eos_index=dataset.word_2_index["EOS"]
+        )
+    elif model_version == "attention":
+        attention_type = args.attention_type
+        if attention_type not in ["dot", "general", "concat"]:
+            raise ValueError("unknown attention type defined! got: " + attention_type)
+        model = AttentionSeq2Seq(
+            hidden_size=hidden_size,
+            batch_size=batch_size,
+            vocab_size=vocab_size,
+            embedding_dimension=embedding_dimension,
+            cuda_enabled=cuda_enabled,
+            sos_index=dataset.word_2_index["SOS"],
+            eos_index=dataset.word_2_index["EOS"],
+            attention_mode=attention_type
+        )
 
 
     shuffle_data_loader = True
@@ -270,9 +301,7 @@ if __name__ == "__main__":
     test_cnt = 0
     test_start = time.time()
     test_time_array = []
-
     model.load(path=model_save_path, name="best.checkpoint")
-
     for batch in testing_generator:
         _s = time.time()
         if len(batch[0][0]) != batch_size:

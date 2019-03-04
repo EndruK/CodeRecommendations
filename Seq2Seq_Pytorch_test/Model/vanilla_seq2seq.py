@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 import random
@@ -56,7 +55,6 @@ class VanillaSeq2Seq:
             embedding_dim=self.embedding_dimension,
             padding_idx=0
         )
-
         self.encoder = Encoder(
             embedding_layer=self.embedding,
             hidden_size=self.encoder_hidden_size,
@@ -96,12 +94,6 @@ class VanillaSeq2Seq:
         :param teacher_force: Flag to force teaching (use of the target tokens as input for decoder)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        #x = Variable(torch.LongTensor(x))
-        #y = Variable(torch.LongTensor(y))
-        #if self.cuda_enabled:
-        #    x = x.cuda()
-        #    y = y.cuda()
-
         x, x_lengths, y, y_mask, max_target_len = batch
         if self.cuda_enabled:
             x = x.cuda()
@@ -111,13 +103,7 @@ class VanillaSeq2Seq:
 
         self.encoder.zero_grad()
         self.decoder.zero_grad()
-        # hidden = self.encoder.init_hidden_state(self.batch_size)
         encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
-        # decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-        # decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-        # decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-        # decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-        # decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
         decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
 
         decoder_input = [[self.sos_index for _ in range(self.batch_size)]]
@@ -164,7 +150,6 @@ class VanillaSeq2Seq:
         ## calculate the accuracy
         # shape results: [time, batch]
         # shape target:  [time, batch]
-        #print()
         # get the data as np arrays
         if self.cuda_enabled:
             results = results.cpu().numpy()
@@ -180,30 +165,6 @@ class VanillaSeq2Seq:
         mask_sum = np.sum(mask, axis=0)
         accuracy = hit_sum / mask_sum
         batch_accuracy = np.mean(accuracy)
-        #print()
-        # if self.cuda_enabled:
-        #     #batch_accuracy = np.mean(acc.cpu().numpy())
-        #     acc_numpy = acc.cpu().numpy()
-        # else:
-        #     #batch_accuracy = np.mean(acc.numpy())
-        #     acc_numpy = acc.numpy()
-
-        # we have to change the dimensions of masking from [batch, time] to [time, batch]
-        #mask = np.swapaxes(mask, 1, 0)
-
-        # swap the axis of accuracy from [time, batch] to [batch, time]
-        # acc_numpy = np.swapaxes(acc_numpy, 1, 0)
-
-        # summarize the masking array to get the amount of unmasked elements
-        #unmasked_count = np.sum(mask, axis=0)
-        # apply masking to accuracy array and summarize the correct hits
-
-        # joined = acc_numpy * mask
-        # summed_acc = np.sum(joined, axis=1)
-        # summed_mask = np.sum(mask, axis=1)
-        # batch_accuracy = summed_acc / summed_mask
-        # accuracy = np.mean(batch_accuracy)
-
         return loss, batch_loss, batch_accuracy
 
     def training_iteration(self, batch):
@@ -217,19 +178,6 @@ class VanillaSeq2Seq:
             len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        #batch = np.array(batch)
-        #x = np.array(batch[:, 0].tolist())
-        #y = np.array(batch[:, 1].tolist())
-        #m = np.array(batch[:, 2].tolist())
-
-        # if self.cuda_enabled:
-        #     x = x.cuda()
-        #     y = y.cuda()
-        #     #m = m.cuda()
-
-
-
-
         teacher_force = random.random() < self.teacher_force_probability
         loss, batch_loss, batch_accuracy = self.model_iteration(batch, teacher_force)
         #loss, batch_loss = self.model_iteration(batch, teacher_force)
@@ -251,14 +199,6 @@ class VanillaSeq2Seq:
             len(y) == len(mask) != len(x)
         :return: tuple containing the mean batch loss and the mean batch accuracy
         """
-        # batch = np.array(batch)
-        # x = np.array(batch[:, 0].tolist())
-        # y = np.array(batch[:, 1].tolist())
-        # m = np.array(batch[:, 2].tolist())
-
-        # if self.cuda_enabled:
-        #     x = x.cuda()
-        #     y = y.cuda()
 
         with torch.no_grad():
             _, batch_loss, batch_accuracy = self.model_iteration(batch, teacher_force=False)
@@ -287,11 +227,6 @@ class VanillaSeq2Seq:
                 x_lengths = x_lengths.cuda()
             #hidden = self.encoder.init_hidden_state(1)
             encoder_output, encoder_last_hidden_state = self.encoder(x, x_lengths)
-            # decoder_hidden_h = torch.cat((encoder_last_hidden_state[0][0], encoder_last_hidden_state[1][0]), dim=-1)
-            # decoder_hidden_h = decoder_hidden_h.unsqueeze(0)
-            # decoder_hidden_c = torch.cat((encoder_last_hidden_state[0][1], encoder_last_hidden_state[1][1]), dim=-1)
-            # decoder_hidden_c = decoder_hidden_c.unsqueeze(0)
-            # decoder_hidden = (decoder_hidden_h, decoder_hidden_c)
             decoder_hidden = encoder_last_hidden_state[:self.decoder.n_layers]
             decoder_input = [[self.sos_index]]
             if self.cuda_enabled:
@@ -398,24 +333,6 @@ class Encoder(nn.Module):
 
         return output, last_hidden_state
 
-    # def init_hidden_state(self, batch_size):
-    #     """
-    #     Initialize a hidden state for the LSTM unit.
-    #     LSTM state = (h, c)
-    #     h = hidden_part = (num_layers * num_directions, batch, hidden_size)
-    #     c = hidden_part = (num_layers * num_directions, batch, hidden_size)
-    #
-    #     :param batch_size: we have to know how many elements there are in a batch
-    #     :return: state tuple containing (h, c)
-    #     """
-    #     # LSTM expects hidden to be a tuple=(h, c) : h and c = (num_layers * num_directions, batch, hidden_size)
-    #     h = Variable(torch.zeros(2, batch_size, self.hidden_size))
-    #     c = Variable(torch.zeros(2, batch_size, self.hidden_size))
-    #     if self.cuda_enabled:
-    #         h = h.cuda()
-    #         c = c.cuda()
-    #     return h, c
-
 
 class Decoder(nn.Module):
 
@@ -432,20 +349,12 @@ class Decoder(nn.Module):
         :param cuda_enabled: flag for using GPU for the model or not
         """
         super(Decoder, self).__init__()
-
         # init model parameter
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.embedding_dimension = embedding_dimension
         self.cuda_enabled = cuda_enabled
-
         self.n_layers = 2
-
-        # init layers
-        # self.embedding = nn.Embedding(
-        #     num_embeddings=self.vocab_size,
-        #     embedding_dim=self.embedding_dimension
-        # )
         self.embedding = embedding_layer
         self.gru = nn.GRU(
             input_size=self.embedding_dimension,
@@ -468,12 +377,9 @@ class Decoder(nn.Module):
         :param encoder_output: complete output of the encoder - for later use (default = None)
         :return: tuple(output, hidden) of shape: output[batch, vocab], hidden[2, 1, batch, hidden_size]
         """
-        # x_input shape: (batch)
-        x_embedded = self.embedding(x)  # shape: (batch, embedding)
-        #x_embedded = x_embedded.unsqueeze(0)  # shape: (1, batch, embedding)
+        x_embedded = self.embedding(x)
         output, hidden = self.gru(x_embedded, hidden)
-
-        output = output.squeeze(0)  # shape: (batch, hidden)
+        output = output.squeeze(0)
         output = self.projection(output)
-        output = F.softmax(output, dim=1)  # shape: (batch, vocab)
+        output = F.softmax(output, dim=1)
         return output, hidden

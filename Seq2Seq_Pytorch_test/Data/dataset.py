@@ -217,6 +217,10 @@ class Dataset:
         self.partitions["validation"].set_vocab_and_mapping(self.vocab, self.word_2_index)
         self.partitions["testing"].set_vocab_and_mapping(self.vocab, self.word_2_index)
 
+        log.debug("top 20 words in vocab: " + str(self.vocab[:20]))
+        log.debug("i2w top20: " + str([[w, i] for w, i in self.word_2_index.items() if i < 20]))
+        log.debug("w2i top20: " + str([[i, w] for i, w in self.index_2_word.items() if i < 20]))
+
     def dump_vocab(self, p, title):
         """
         Dump the vocab, i2w and w2i variables to disk.
